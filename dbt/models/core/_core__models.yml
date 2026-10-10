@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Dimensi tanggal spine dengan informasi event nasional, libur, dan ramadan.
+    columns:
+      - name: date_day
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_outlet
+    description: Dimensi outlet dan status operasional.
+    columns:
+      - name: outlet_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_menu_item
+    description: Dimensi menu item dengan harga aktif dan food cost % terkini.
+    columns:
+      - name: menu_item_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_ingredient
+    description: Dimensi bahan baku (raw & prep) dan standard cost terkini.
+    columns:
+      - name: ingredient_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_channel
+    description: Dimensi sales channel dan komisi saat ini.
+    columns:
+      - name: channel_code
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fct_order_lines
+    description: Fact order lines dengan perhitungan revenue, alokasi diskon pro-rata, dan standard COGS.
+    columns:
+      - name: order_item_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fct_orders
+    description: Fact orders level transaksi order.
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fct_waste
+    description: Fact catatan limbah (waste) dengan valuasi HPP standar tanggal kejadian.
+    columns:
+      - name: waste_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fct_refunds
+    description: Fact refund pesanan.
+    columns:
+      - name: refund_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fct_goods_receipt_lines
+    description: Fact detail penerimaan barang dari supplier.
+    columns:
+      - name: gr_line_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fct_stock_counts
+    description: Fact stock opname berkala.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [count_id, ingredient_id]
