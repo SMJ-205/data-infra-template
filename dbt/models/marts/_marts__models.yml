@@ -3,12 +3,16 @@ version: 2
 models:
   - name: mart_pnl_daily
     description: P&L harian per outlet berbasis standard cost dan theoretical cost of sales.
+    config:
+      tags: ["finance", "daily", "mart"]
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [report_date, outlet_id]
 
   - name: mart_inventory_variance
     description: Rekonsiliasi variance inventori teoritis vs aktual per periode stock count.
+    config:
+      tags: ["operations", "mart"]
     columns:
       - name: inventory_period_key
         data_tests:
@@ -17,12 +21,16 @@ models:
 
   - name: mart_pnl_monthly
     description: P&L bulanan per outlet berbasis actual cost of sales (termasuk variance stock opname).
+    config:
+      tags: ["finance", "mart"]
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [report_month, outlet_id]
 
   - name: mart_kpi_monthly_status
     description: Status evaluasi KPI bulanan (OK/WARN/CRITICAL) terhadap threshold target.
+    config:
+      tags: ["finance", "mart"]
     columns:
       - name: status
         data_tests:
@@ -31,12 +39,16 @@ models:
 
   - name: mart_menu_engineering
     description: Matriks Menu Engineering Kasavana-Smith (Star, Plowhorse, Puzzle, Dog).
+    config:
+      tags: ["operations", "mart"]
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [report_month, outlet_id, menu_item_id]
 
   - name: mart_waste_analysis
     description: Analisis waste per outlet, tanggal, alasan, dan kategori.
+    config:
+      tags: ["operations", "daily", "mart"]
     columns:
       - name: waste_cost
         data_tests:
@@ -44,6 +56,16 @@ models:
 
   - name: mart_channel_performance_daily
     description: Kinerja sales channel harian per outlet (net sales, komisi, diskon platform).
+    config:
+      tags: ["operations", "daily", "mart"]
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [order_date, outlet_id, channel_code]
+
+  - name: mart_orders_hourly
+    description: Distribusi order per jam untuk heatmap traffic operasional.
+    config:
+      tags: ["operations", "daily", "mart"]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [outlet_id, channel_code, day_of_week_num, order_hour_local]

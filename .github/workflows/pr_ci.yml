@@ -1,0 +1,71 @@
+name: pr-ci
+
+on:
+  pull_request:
+    paths: ['dbt/**', 'scripts/**']
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+jobs:
+  dbt-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: dbt
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_CI }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: dbt deps
+
+      - name: PII guard
+        run: python ../scripts/check_pii_columns.py models
+
+      - name: Ambil manifest prod terakhir
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh run list --workflow daily_pipeline.yml --status success --limit 1 --json databaseId -q '.[0].databaseId' || true)
+          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+            gh run download "$RUN_ID" --name prod-manifest --dir prod_state || true
+          fi
+
+      - name: Lint SQL yang berubah (non-blocking dulu)
+        run: |
+          CHANGED=$(git diff --relative --name-only --diff-filter=AM "origin/${{ github.base_ref }}...HEAD" -- models | grep '\.sql$' || true)
+          if [ -n "$CHANGED" ]; then
+            sqlfluff lint $CHANGED --format github-annotation-native --nofail
+          fi
+
+      - name: Slim CI build
+        run: |
+          if [ -f prod_state/manifest.json ]; then
+            dbt build --target ci --select state:modified+ --defer --state prod_state
+          else
+            dbt build --target ci
+          fi
+
+      - name: Hapus dataset CI
+        if: always()
+        run: |
+          for ds in $(bq ls --format=json --project_id "$GCP_PROJECT_ID" | jq -r '.[].datasetReference.datasetId' | grep "^dbt_ci_pr${PR_NUMBER}" || true); do
+            bq rm -r -f -d "$GCP_PROJECT_ID:$ds"
+          done

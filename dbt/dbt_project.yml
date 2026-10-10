@@ -35,15 +35,19 @@ models:
     staging:
       +materialized: view
       +schema: stg
+      +tags: ["staging", "daily"]
     intermediate:
       +materialized: table
       +schema: int
+      +tags: ["intermediate", "daily"]
     core:
       +materialized: table
       +schema: core
+      +tags: ["core", "daily"]
     marts:
       +materialized: table
       +schema: marts
+      +tags: ["mart"]
   elementary:
     +schema: ops_elementary
 

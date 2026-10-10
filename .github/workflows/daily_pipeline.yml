@@ -1,0 +1,141 @@
+name: daily-pipeline
+
+on:
+  schedule:
+    - cron: '30 17 * * *'          # 00:30 WIB
+  workflow_dispatch:
+    inputs:
+      full_refresh:
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+
+jobs:
+  generate:                         # hanya untuk simulasi; hapus bila OLTP diisi aplikasi nyata
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r oltp/generator/requirements.txt
+      - run: python oltp/generator/generate.py daily --date "$(TZ=Asia/Jakarta date -d yesterday +%F)"
+        env:
+          SOURCE_DATABASE_URL: ${{ secrets.SOURCE_DATABASE_URL }}
+
+  ingest:
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r ingestion/requirements.txt
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_INGEST }}
+      - run: python ingestion/pipeline.py
+        env:
+          SOURCE_DATABASE_URL: ${{ secrets.SOURCE_DATABASE_URL }}
+          DESTINATION__BIGQUERY__LOCATION: asia-southeast2
+          DESTINATION__BIGQUERY__CREDENTIALS__PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+
+  transform:
+    needs: ingest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: dbt
+    env:
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_DBT }}
+      - run: dbt deps
+      - run: dbt source freshness --target prod || true
+      - name: dbt build (full refresh mingguan tiap Senin dini hari, atau manual)
+        run: |
+          if [ "${{ inputs.full_refresh }}" = "true" ] || [ "$(TZ=Asia/Jakarta date +%u)" = "1" ]; then
+            dbt build --target prod --full-refresh
+          else
+            dbt build --target prod
+          fi
+      - run: dbt docs generate --target prod
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prod-manifest
+          path: |
+            dbt/target/manifest.json
+            dbt/target/run_results.json
+          retention-days: 30
+      - uses: actions/upload-pages-artifact@v3
+        if: always()
+        with:
+          path: dbt/target
+
+  deploy-docs:
+    needs: transform
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/deploy-pages@v4
+
+  export-dashboard:                 # JSON mart -> dashboard Vercel
+    needs: transform
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r dashboard/requirements.txt
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_EXPORT }}
+      - run: python dashboard/export_marts.py
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      - name: Commit data bila berubah (memicu deploy Vercel)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dashboard/public/data
+          git diff --cached --quiet || { git commit -m "chore(dashboard): refresh data $(date -u +%F)"; git push; }

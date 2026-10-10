@@ -22,8 +22,9 @@ for path in pathlib.Path(model_dir).rglob("*.yml"):
                 bad.append(f"{path}: {model.get('name', 'unknown')}.{col.get('name', '')}")
 
 # Scan dashboard exported JSON files if directory exists
-data_dir = pathlib.Path("dashboard/public/data")
-if data_dir.exists():
+data_candidates = [pathlib.Path("dashboard/public/data"), pathlib.Path("../dashboard/public/data")]
+data_dirs = [d for d in data_candidates if d.exists()]
+for data_dir in data_dirs:
     raw_email_re = re.compile(r'"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"')
     raw_phone_re = re.compile(r'"(?:\+62|08)[0-9]{8,12}"')
     for jpath in data_dir.glob("*.json"):

@@ -1,60 +1,245 @@
-# F&B Data Platform
+# 🍽️ F&B Modern Data Platform (100% Free-Tier Architecture)
 
-Portofolio data engineering end-to-end untuk bisnis F&B (multi-outlet), 100% free tier.
+> **Enterprise-Grade Multi-Outlet Food & Beverage Data Platform built with Zero Operational Cost (Rp 0 / $0.00/month).**
+> 
+> Menggabungkan **Neon PostgreSQL (OLTP)**, **dlt (Ingestion)**, **Google BigQuery (`asia-southeast2`)**, **dbt Core v1.9 (Transformation & Semantic Costing)**, serta Serving layer ganda: **Vercel Static Dashboard (Chart.js + Kasavana-Smith Matrix)** dan **Google Sheets + Apps Script (Automated KPI & Alerts)**.
+
+---
+
+## 🏛️ Architecture Overview
+
+Platform ini dirancang dengan prinsip **Keyless Security (WIF)**, **Strict Cost Guardrails**, dan **Idempotent Pipelines**.
+
+```mermaid
+flowchart LR
+    subgraph OLTP["1. Source (OLTP)"]
+        NEON[("Neon PostgreSQL<br/>Schema 'fnb' (29 tables)<br/>267k Orders · 1.33M Rows")]
+    end
+
+    subgraph INGEST["2. Ingestion"]
+        DLT["dlt Pipeline<br/>(Merge & Incremental<br/>updated_at)"]
+    end
+
+    subgraph DWH["3. Data Warehouse (BigQuery asia-southeast2)"]
+        RAW[("raw_fnb<br/>Raw Tables")]
+        STG[("stg<br/>29 Clean Views")]
+        INT[("int<br/>Recursive BOM Explosion<br/>Std Cost Daily Engine")]
+        CORE[("core<br/>Star Schema Dimensions<br/>& Fact Tables")]
+        MARTS[("marts<br/>P&L, Variance, Kasavana-Smith,<br/>Waste & Traffic")]
+    end
+
+    subgraph CI_CD["4. Orchestration & CI/CD"]
+        GHA["GitHub Actions<br/>• Daily Pipeline (00:30 WIB)<br/>• Slim CI & SQLFluff<br/>• WIF Keyless Auth"]
+    end
+
+    subgraph SERVING["5. Serving Layer"]
+        VERCEL["Vercel Static Web<br/>• Dark Glassmorphism UI<br/>• 6 Interactive Tabs<br/>• Kasavana-Smith Matrix<br/>• Static JSON (< 5.5 MB)"]
+        GSHEETS["Google Sheets & Apps Script<br/>• Daily Cache Sync<br/>• Multi-Channel KPI Alerts<br/>• Web App Dashboard"]
+    end
+
+    NEON -->|dlt extract| DLT
+    DLT -->|append / merge| RAW
+    RAW --> STG
+    STG --> INT
+    INT --> CORE
+    CORE --> MARTS
+    MARTS -->|export_marts.py| VERCEL
+    MARTS -->|Scheduled Query| GSHEETS
+    GHA -.->|Orchestrates| DLT
+    GHA -.->|dbt build| DWH
+    GHA -.->|Pushes JSON| VERCEL
+```
+
+---
+
+## 💸 Zero-Cost Guarantee (100% Free-Tier Breakdown)
+
+Seluruh komponen arsitektur berada dalam batas gratis permanen (*free-tier*) tanpa risiko pembengkakan biaya:
+
+| Komponen | Provider | Batas Free-Tier | Konsumsi Platform Ini | Safety Mechanism |
+|---|---|---|---|---|
+| **OLTP Database** | Neon PostgreSQL | 0.5 GB storage, autosuspend | 324 MB (267k orders, 1.33M rows) | Auto-suspend compute saat idle |
+| **Data Warehouse** | Google BigQuery | 10 GB storage, 1 TB query/bln | < 1.5 GB storage, ~80 MB per run | **Hard Quota 20 GB/hari** + `maximum_bytes_billed: 2 GB` |
+| **Transformation** | dbt Core v1.9 | Open-source (Free) | Runs on GitHub Actions runner | Local execution / CI runner |
+| **CI/CD & Scheduler**| GitHub Actions | 2,000 menit/bln (Public: Unlimited) | ~5 menit per daily run | Concurrency lock + timeout 30m |
+| **Serving (Web)** | Vercel | 100 GB bandwidth/bln | ~5.16 MB static JSON bundle | Static-only hosting (no serverless compute) |
+| **Serving (Alerts)**| Google Sheets & Apps Script | 6 menit execution/run | Sync run ~40 detik | Read-only cached tabs (no ad-hoc BQ queries) |
+
+> 🛡️ **Kompensasi Keamanan Biaya:** BigQuery API Quota diset permanen ke **0.02 TiB/hari** (~20 GB/hari) dan seluruh query dbt/script dibatasi oleh flag `maximum_bytes_billed: 2000000000` (2 GB). Query apapun yang melebihi batas ini akan langsung di-abort otomatis oleh GCP sebelum dieksekusi.
+
+---
+
+## 🧩 Fitur Analitik & Business Storytelling
+
+Dataset mensimulasikan jaringan F&B multi-outlet (6 gerai: Dine-in, Express, Cloud Kitchen, Kiosk) dengan cerita bisnis nyata yang tertanam:
+
+1. **Kasavana-Smith Menu Engineering Matrix (`mart_menu_engineering`)**:
+   - Kategorisasi menu otomatis: **Stars** (Margin Tinggi, Volume Tinggi), **Plowhorses** (Margin Rendah, Volume Tinggi), **Puzzles** (Margin Tinggi, Volume Rendah), **Dogs** (Margin Rendah, Volume Rendah).
+2. **Rekonsiliasi Inventori Teoritis vs Aktual (`mart_inventory_variance`)**:
+   - Membandingkan konsumsi resep standar (Theoretical BOM Explosion) terhadap hasil *Stock Opname* fisik bulanan.
+   - Mendeteksi anomali nyata seperti *incident overpour sirup* di KIOSK-02 dan *spoilage batch susu* di KIOSK-01.
+3. **P&L Harian & Bulanan (`mart_pnl_daily`, `mart_pnl_monthly`)**:
+   - P&L Harian berbasis *standard costing* untuk evaluasi cepat manajer gerai.
+   - P&L Bulanan berbasis *actual cost of sales* (termasuk variance inventori, alokasi OPEX sewa, utilitas, gaji, dan depresiasi peralatan).
+4. **Kinerja Channel & Potongan Komisi (`mart_channel_performance_daily`)**:
+   - Transparansi margin antara transaksi *Dine-in/Takeaway* vs *Online Delivery* (GoFood 20%, GrabFood 20%, ShopeeFood 20%).
+5. **Traffic & Heatmap Operasional (`mart_orders_hourly`)**:
+   - Pola lonjakan jam makan siang (11:00–13:00) dan makan malam (18:00–20:00) untuk optimasi jadwal staf barista & dapur.
+
+---
+
+## 📁 Struktur Repositori
 
 ```
-Neon Postgres (OLTP) --dlt--> BigQuery --dbt Core--> marts --+--> Google Sheets + Apps Script (alert)
-                                                             +--> JSON --> Dashboard Vercel (statis)
+├── .github/workflows/
+│   ├── daily_pipeline.yml       # Ingestion harian, dbt build, docs, export JSON
+│   ├── pr_ci.yml                # Slim CI, SQLFluff linter, PII guard, CI teardown
+│   └── wif_smoke_test.yml       # Verifikasi autentikasi Workload Identity Federation
+├── infra/
+│   ├── bootstrap_gcp.sh         # Script provisioning GCP idempotent (WIF, SA, dataset)
+│   └── bigquery_setup.sql       # DDL dataset, WIF grant, PII salt secret
+├── oltp/
+│   ├── schema/
+│   │   ├── 001_schema.sql       # 29 tabel DDL relasional (fnb schema)
+│   │   └── 002_seed_master.sql  # Master outlets, ingredients, menu, BOM recipes
+│   └── generator/
+│       ├── generate.py          # Generator data deterministik & idempotent
+│       └── config.yaml          # Parameter demand, event, dan elastisitas harga
+├── ingestion/
+│   ├── pipeline.py              # Ingestion dlt Postgres -> BigQuery raw_fnb
+│   └── requirements.txt
+├── dbt/
+│   ├── models/
+│   │   ├── staging/pos/         # 29 views pembersihan tipe data & metadata
+│   │   ├── intermediate/        # BOM recursion explosion & daily standard costing
+│   │   ├── core/                # Star schema (dim_*, fct_*)
+│   │   ├── marts/               # Marts analitik P&L, KPI, Kasavana-Smith, Variance
+│   │   └── exposures.yml        # Lineage exposure ke Vercel & Google Sheets
+│   ├── seeds/                   # kpi_thresholds.csv, id_calendar_events.csv
+│   ├── tests/                   # Singular data tests (reconciliation & business logic)
+│   └── requirements.txt         # dbt-core, dbt-bigquery, sqlfluff
+├── dashboard/
+│   ├── export_marts.py          # JSON exporter aman (PII masked, key filtered)
+│   ├── vercel.json              # Konfigurasi routing Vercel
+│   └── public/                  # Static SPA (HTML5, Vanilla CSS dark glassmorphism, JS)
+│       ├── index.html
+│       ├── style.css
+│       ├── app.js
+│       └── data/*.json          # Snapshot data mart publik
+├── apps_script/
+│   ├── Code.gs                  # Sync BigQuery -> Sheets, deduplicated alert email
+│   ├── Dashboard.html           # Embedded Google Sheets web app
+│   └── appsscript.json          # Manifest OAuth scopes & BQ Advanced Service
+└── scripts/
+    ├── check_pii_columns.py     # Linter PII otomatis pada model YAML & JSON ekspor
+    └── reconcile_neon_bigquery.py# Verifikasi 100% konsistensi row count OLTP vs DWH
 ```
 
-Orkestrasi dan CI memakai GitHub Actions. Dokumentasi dbt di GitHub Pages.
+---
 
-- Rencana lengkap: [fnb_data_platform_implementation_plan_v2.md](fnb_data_platform_implementation_plan_v2.md)
-- Status: **Fase 0 (fondasi)** sedang berjalan. Lihat roadmap di plan §13.
+## 🏷️ Kamus Tag dbt (`dbt tags`)
 
-## Struktur
+Gunakan tag dbt untuk menjalankan sub-DAG secara modular dan hemat resource:
 
-| Folder | Isi |
-|---|---|
-| `infra/` | `bootstrap_gcp.sh`, `bigquery_setup.sql` (dataset, service account, WIF, grant) |
-| `oltp/` | DDL OLTP dan generator data simulasi (Fase 1) |
-| `ingestion/` | Pipeline dlt Postgres -> BigQuery (Fase 2) |
-| `dbt/` | Project dbt (Fase 3-5) |
-| `dashboard/` | Export mart -> JSON dan dashboard Vercel (Fase 6) |
-| `apps_script/` | Google Sheets + Apps Script (Fase 6) |
-| `scripts/` | Utilitas, mis. PII guard |
-| `.github/workflows/` | Pipeline harian, CI PR, smoke test WIF |
+| Tag | Deskripsi | Model yang Terkena | Contoh Perintah |
+|---|---|---|---|
+| `daily` | Model yang wajib diperbarui pada pipeline harian | `staging`, `intermediate`, `core`, `mart_pnl_daily`, dll. | `dbt build --select tag:daily` |
+| `finance` | Seluruh model mart keuangan | `mart_pnl_daily`, `mart_pnl_monthly`, `mart_kpi_monthly_status` | `dbt build --select tag:finance` |
+| `operations` | Seluruh model mart operasional gerai | `mart_inventory_variance`, `mart_waste_analysis`, `mart_menu_engineering`, `mart_channel_performance_daily`, `mart_orders_hourly` | `dbt build --select tag:operations` |
+| `mart` | Seluruh tabel mart analitik akhir | Semua model di `models/marts/` | `dbt build --select tag:mart` |
+| `staging` | Layer staging (views) | 29 models di `models/staging/pos/` | `dbt run --select tag:staging` |
+| `core` | Layer dimensi dan fakta bintang | Dimensi & fakta di `models/core/` | `dbt build --select tag:core` |
 
-## Setup Fase 0
+---
 
-Prasyarat manual (sekali):
+## 🚀 Panduan Setup & Menjalankan Lokal
 
-1. Buat project GCP dan link billing account. Billing wajib aktif karena BigQuery Sandbox tidak mendukung DML.
-2. Buat project Neon `fnb-oltp`.
-3. Buat repo GitHub (publik) dan salin `.env.example` ke `.env` (jangan di-commit), lalu isi `GCP_PROJECT_ID` dan `GITHUB_REPO`.
-4. Login:
-   ```bash
-   gcloud auth login
-   gcloud auth application-default login
-   ```
+### 1. Prasyarat Sistem
+- **Python 3.12+** (macOS, Linux, atau Windows WSL)
+- **Google Cloud SDK (`gcloud`)**
+- **Git**
 
-Jalankan bootstrap:
-
+### 2. Autentikasi GCP & Environment Variables
+Salin konfigurasi environment dari template:
 ```bash
-set -a; source .env; set +a
-bash infra/bootstrap_gcp.sh
+cp .env.example .env
+```
+Isi variabel di dalam `.env` (`GCP_PROJECT_ID`, `SOURCE_DATABASE_URL`).
+
+Login ke Google Cloud untuk autentikasi dbt lokal:
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project fnb-data-platform
 ```
 
-Skrip ini idempotent: mengaktifkan API, membuat 4 service account, Workload Identity Federation (tanpa JSON key), 9 dataset, grant per dataset, salt PII, dan (opsional) budget alert.
+### 3. Setup Virtual Environment
+```bash
+python3 -m venv venv
+source venv/bin/activate
 
-Langkah manual setelah bootstrap (dicetak oleh skrip):
+# Install dependensi dbt & linter
+pip install -r dbt/requirements.txt
 
-1. **Custom quota BigQuery 20 GB/hari** (wajib sebelum job pertama). Ini guardrail utama yang memblokir query secara keras.
-2. Isi GitHub Actions variables/secrets (nilai dicetak oleh skrip).
-3. Jalankan workflow **wif-smoke-test** dari tab Actions.
+# Install dependensi ingestion & export
+pip install -r ingestion/requirements.txt
+pip install -r dashboard/requirements.txt
+```
 
-## Keamanan
+### 4. Eksekusi Pipeline Lokal
+```bash
+# 1. Jalankan dlt Ingestion (Postgres -> BigQuery raw_fnb)
+python ingestion/pipeline.py
 
-- Tidak ada JSON key di repo maupun GitHub Secrets; akses GCP memakai WIF.
-- Repo publik: jangan commit `.env`, connection string, atau output yang mengandung PII.
-- Data yang dipublikasikan ke dashboard hanya agregat dari dataset `marts`.
+# 2. Verifikasi Konsistensi Neon vs BigQuery
+python scripts/reconcile_neon_bigquery.py
+
+# 3. Jalankan dbt Build (Seeds, Snapshots, Models, Tests)
+cd dbt
+dbt deps
+dbt build --target prod
+cd ..
+
+# 4. Ekspor Data Marts ke JSON Dashboard
+python dashboard/export_marts.py
+
+# 5. Jalankan PII & Schema Guard
+python scripts/check_pii_columns.py
+```
+
+### 5. Jalankan Dashboard Web Lokal
+Buka web dashboard statis di browser lokal tanpa dependensi server eksternal:
+```bash
+python3 -m http.server 8080 -d dashboard/public
+```
+Akses di browser: `http://localhost:8080`
+
+---
+
+## 🌐 Panduan Deploy ke Vercel (Gratis)
+
+Dashboard web berstatus 100% statis (*zero backend server*), membaca langsung file JSON hasil export mart.
+
+1. Buka [Vercel Dashboard](https://vercel.com) dan klik **Add New Project**.
+2. Hubungkan ke repositori GitHub ini (`data-infra-template`).
+3. Pada konfigurasi project:
+   - **Framework Preset**: Pilih `Other`
+   - **Root Directory**: Ubah ke `dashboard/public`
+   - **Build Command**: Kosongkan (tidak butuh build script)
+   - **Output Directory**: Kosongkan / `.`
+4. Klik **Deploy**.
+5. Setiap kali pipeline harian GitHub Actions berjalan dan memperbarui data mart, commit otomatis ke `dashboard/public/data/*.json` akan langsung memicu *Instant Redeploy* di Vercel secara otomatis!
+
+---
+
+## 🔒 Keamanan & Good Practices
+
+- **Zero Hardcoded Secrets**: Tidak ada file service account JSON key di repositori maupun GitHub Secrets. Seluruh autentikasi GitHub Actions menggunakan Google Cloud Workload Identity Federation (WIF).
+- **Automated PII Guard**: Kolom pelanggan sensitif (`full_name`, `phone`, `email`, `address`) otomatis di-masking/hashing via macro dbt dan divalidasi oleh `check_pii_columns.py` sebelum di-publish.
+- **Slim CI PR**: Setiap Pull Request memicu workflow `pr_ci.yml` yang menjalankan SQLFluff linter, PII guard, serta membangun hanya model yang berubah (`state:modified+`) pada dataset sementara `dbt_ci_pr<PR_NUMBER>_*` yang otomatis dihapus setelah pengujian selesai.
+
+---
+
+## 📜 Lisensi
+Platform data ini dilisensikan di bawah [MIT License](LICENSE).
+Dikembangkan untuk kebutuhan portofolio arsitektur data modern end-to-end berbiaya Rp 0.
