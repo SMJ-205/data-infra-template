@@ -1,0 +1,40 @@
+name: wif-smoke-test
+
+# Gate Fase 0: membuktikan GitHub Actions bisa autentikasi ke GCP tanpa JSON key,
+# dan akses tiap service account sesuai least privilege. Jalankan manual dari tab Actions.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: sa-ingest, sa_var: SA_INGEST, can_read: raw_fnb,  cannot_read: marts}
+          - {name: sa-dbt,    sa_var: SA_DBT,    can_read: raw_fnb,  cannot_read: ""}
+          - {name: sa-export, sa_var: SA_EXPORT, can_read: marts,    cannot_read: raw_fnb}
+    steps:
+      - uses: actions/checkout@v4   # TODO Fase 7: pin ke commit SHA
+      - name: Auth (WIF, tanpa key) sebagai ${{ matrix.name }}
+        uses: google-github-actions/auth@v2   # TODO Fase 7: pin ke commit SHA
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars[matrix.sa_var] }}
+      - uses: google-github-actions/setup-gcloud@v2   # TODO Fase 7: pin ke commit SHA
+      - name: Akses dataset yang diizinkan harus berhasil
+        run: bq ls --project_id="${{ vars.GCP_PROJECT_ID }}" "${{ matrix.can_read }}"
+      - name: Akses dataset terlarang harus ditolak
+        if: ${{ matrix.cannot_read != '' }}
+        run: |
+          if bq ls --project_id="${{ vars.GCP_PROJECT_ID }}" "${{ matrix.cannot_read }}" >/dev/null 2>&1; then
+            echo "::error::${{ matrix.name }} seharusnya TIDAK bisa membaca ${{ matrix.cannot_read }}"
+            exit 1
+          fi
+          echo "OK: akses ke ${{ matrix.cannot_read }} ditolak seperti yang diharapkan"
