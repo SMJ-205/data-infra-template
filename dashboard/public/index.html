@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F&amp;B Analytics &amp; Data Platform | Enterprise Multi-Outlet Intelligence</title>
+  <meta name="description" content="Production-grade F&B multi-outlet data platform portfolio: Neon Postgres, BigQuery, dbt Core, standard costing engine, Kasavana-Smith menu engineering, and cost control.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-top">
+        <div>
+          <h1 class="brand-title">
+            F&amp;B Multi-Outlet Analytics
+            <span class="brand-badge">PROD ARCHITECTURE</span>
+          </h1>
+          <p class="brand-subtitle">
+            Enterprise Standard Costing Engine · Kasavana-Smith Menu Engineering · Shrinkage &amp; Waste Leakage Prevention
+          </p>
+        </div>
+        <div class="header-badges">
+          <span class="pill-badge active-status">
+            <span class="dot-indicator"></span> 100% Free-Tier (Rp 0 / Zero Cost)
+          </span>
+          <span class="pill-badge" id="badge-sync">
+            🕒 Sync: Memuat data...
+          </span>
+          <a href="https://github.com/SMJ-205/data-infra-template" target="_blank" rel="noopener" class="pill-badge" id="btn-github">
+            📂 GitHub Repo
+          </a>
+          <a href="data/meta.json" target="_blank" rel="noopener" class="pill-badge" id="btn-marts-json">
+            ⬇️ Download Marts JSON
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Global Controls -->
+    <div class="controls-bar" id="controls-bar">
+      <div class="filter-group">
+        <span class="filter-label">🏬 Outlet:</span>
+        <select id="select-outlet" class="filter-select">
+          <option value="ALL">Semua Outlet (Konsolidasi)</option>
+        </select>
+        
+        <span class="filter-label">📅 Periode Bulan:</span>
+        <select id="select-month" class="filter-select">
+          <option value="ALL">Semua Bulan (Trailing)</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="pill-badge" id="badge-records-count">Total Data: Memuat...</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" id="nav-tabs" aria-label="Dashboard Navigation">
+      <button class="tab-btn active" data-tab="pnl" id="tab-btn-pnl">
+        📊 Executive P&amp;L
+      </button>
+      <button class="tab-btn" data-tab="cost" id="tab-btn-cost">
+        🔍 Cost Control &amp; Variance
+      </button>
+      <button class="tab-btn" data-tab="menu" id="tab-btn-menu">
+        ⭐ Menu Engineering (Kasavana-Smith)
+      </button>
+      <button class="tab-btn" data-tab="channel" id="tab-btn-channel">
+        🛵 Kanal Penjualan &amp; Heatmap
+      </button>
+      <button class="tab-btn" data-tab="simulator" id="tab-btn-simulator">
+        🎛️ What-If Margin Simulator
+      </button>
+      <button class="tab-btn" data-tab="explorer" id="tab-btn-explorer">
+        🗄️ Marts Data Explorer
+      </button>
+    </nav>
+
+    <!-- TAB 1: EXECUTIVE P&L -->
+    <section class="tab-section active" id="sec-pnl">
+      <div class="kpi-grid" id="kpi-cards-container">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">📈 Tren Kinerja Finansial: Net Sales vs Food Cost %</h2>
+              <p class="panel-desc">Garis titik merah = Target batas Food Cost % (32% Warn, 35% Critical) dari seed dbt</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-pnl-trend"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">🪜 P&amp;L Waterfall Breakdown (Bulan Terkini)</h2>
+              <p class="panel-desc">Dekomposisi pendapatan dari Gross Sales hingga Outlet EBITDA</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-waterfall"></canvas>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">🎯 Status KPI Bulanan vs Target Threshold</h2>
+              <p class="panel-desc">Threshold guardrail dievaluasi otomatis dari model mart_kpi_monthly_status</p>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-kpi-status">
+              <thead>
+                <tr>
+                  <th>Metrik</th>
+                  <th>Nilai Aktual</th>
+                  <th>Batas Target</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody><!-- JS rendered --></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: COST CONTROL & VARIANCE -->
+    <section class="tab-section" id="sec-cost">
+      <div class="alert-box" id="shrinkage-alert-box">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <h4>Deteksi Anomali Pemakaian &amp; Kebocoran Stok (Stock Opname)</h4>
+          <p id="shrinkage-alert-text">
+            Sistem mendeteksi selisih tidak wajar (unexplained variance) signifikan pada bahan baku utama di outlet Kiosk.
+            Paling dominan: Over-pouring Susu Segar (Fresh Milk) pada periode operasional Q1 2026.
+          </p>
+        </div>
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">📉 Top 10 Bahan: Unexplained Variance (Rp)</h2>
+              <p class="panel-desc">Selisih pemakaian aktual (Stok Awal + Masuk - Akhir) vs Pemakaian Teoritis Penjualan &amp; Waste</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-top-variance"></canvas>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">🗑️ Komposisi Biaya Waste Berdasarkan Alasan</h2>
+              <p class="panel-desc">Klasifikasi limbah terkontrol (Controllable) vs tidak terkontrol (Uncontrollable)</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-waste-reasons"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">⚖️ Theoretical vs Actual Food Cost % Trajectory</h2>
+              <p class="panel-desc">Gap antara COGS teoritis resep vs realisasi aktual setelah memperhitungkan stock shrinkage</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-cost-gap"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: MENU ENGINEERING -->
+    <section class="tab-section" id="sec-menu">
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">⭐ Matriks Kasavana &amp; Smith (Popularitas vs Profitabilitas)</h2>
+              <p class="panel-desc">
+                Kuadran: <strong>Star</strong> (Populer, Untung Tinggi) · 
+                <strong>Plowhorse</strong> (Populer, Untung Rendah) · 
+                <strong>Puzzle</strong> (Kurang Populer, Untung Tinggi) · 
+                <strong>Dog</strong> (Kurang Populer, Untung Rendah)
+              </p>
+            </div>
+            <div class="panel-actions">
+              <select id="select-menu-category" class="filter-select">
+                <option value="ALL">Semua Kategori Menu</option>
+                <option value="Beverage">Beverage</option>
+                <option value="Food">Food</option>
+                <option value="Bakery">Bakery</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-wrapper" style="min-height: 420px;">
+            <canvas id="chart-menu-engineering"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">📋 Rekomendasi Tindakan Strategis per Kelas Menu</h2>
+              <p class="panel-desc">Aksi operasional dan pricing untuk memaksimalkan total contribution margin</p>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-menu-engineering">
+              <thead>
+                <tr>
+                  <th>Nama Menu</th>
+                  <th>Kategori</th>
+                  <th>Kelas Kuadran</th>
+                  <th>Porsi Terjual</th>
+                  <th>Menu Mix %</th>
+                  <th>Avg Margin (Rp)</th>
+                  <th>Rekomendasi Strategis</th>
+                </tr>
+              </thead>
+              <tbody><!-- JS rendered --></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: CHANNELS & HEATMAP -->
+    <section class="tab-section" id="sec-channel">
+      <div class="chart-panel-row">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">🛵 Kontribusi Finansial per Kanal Penjualan</h2>
+              <p class="panel-desc">Net Sales vs Komisi Platform vs Margin Bersih Merchant</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-channel-mix"></canvas>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">📊 Rata-Rata Nilai Transaksi (AOV) per Kanal</h2>
+              <p class="panel-desc">Perbandingan keranjang belanja Offline vs Online Delivery</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-channel-aov"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">🔥 Heatmap Jam &amp; Hari Pemesanan (Peak Hour Traffic)</h2>
+              <p class="panel-desc">Intensitas frekuensi order per jam lokal (WIB) untuk optimasi alokasi shift staf outlet</p>
+            </div>
+          </div>
+          <div class="heatmap-container" id="orders-heatmap">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: WHAT-IF SIMULATOR -->
+    <section class="tab-section" id="sec-simulator">
+      <div class="panel-card full-width-panel" style="margin-bottom: 24px;">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">🎛️ What-If Unit Economics &amp; Pricing Simulator</h2>
+            <p class="panel-desc">Uji skenario penyesuaian komisi delivery, kenaikan harga jual, dan efisiensi HPP secara real-time</p>
+          </div>
+        </div>
+        <div class="simulator-grid">
+          <div class="slider-group">
+            <div class="slider-header">
+              <span>Penyesuaian Komisi Platform</span>
+              <span class="slider-val" id="val-sim-comm">0%</span>
+            </div>
+            <input type="range" id="slider-comm" min="-10" max="15" step="1" value="0">
+            <p class="kpi-subtext">Contoh: GoFood menaikkan komisi merchant dari 15% ke 20%</p>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-header">
+              <span>Penyesuaian Harga Menu Rata-Rata</span>
+              <span class="slider-val" id="val-sim-price">0%</span>
+            </div>
+            <input type="range" id="slider-price" min="-20" max="30" step="1" value="0">
+            <p class="kpi-subtext">Kenaikan atau diskon harga menu offline &amp; online</p>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-header">
+              <span>Efisiensi Pemborosan / Waste</span>
+              <span class="slider-val" id="val-sim-waste">0%</span>
+            </div>
+            <input type="range" id="slider-waste" min="-50" max="50" step="5" value="0">
+            <p class="kpi-subtext">Pengurangan waste lewat pelatihan standar porsi barista</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="sim-kpi-container">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">📊 Perbandingan Skenario: Baseline vs Simulasi Baru</h2>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-sim-comparison"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: DATA EXPLORER -->
+    <section class="tab-section" id="sec-explorer">
+      <div class="panel-card full-width-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">🗄️ Marts Dataset Inspector &amp; Exporter</h2>
+            <p class="panel-desc">Tabel data marts BigQuery yang diekspor otomatis via Workload Identity Federation (WIF)</p>
+          </div>
+          <div class="panel-actions">
+            <select id="select-explorer-mart" class="filter-select">
+              <option value="pnl_monthly">mart_pnl_monthly</option>
+              <option value="pnl_daily">mart_pnl_daily</option>
+              <option value="menu_engineering">mart_menu_engineering</option>
+              <option value="inventory_variance">mart_inventory_variance</option>
+              <option value="waste">mart_waste_analysis</option>
+              <option value="channel_daily">mart_channel_performance_daily</option>
+              <option value="orders_hourly">mart_orders_hourly</option>
+              <option value="kpi_status">mart_kpi_monthly_status</option>
+            </select>
+            <input type="text" id="input-explorer-search" placeholder="Cari baris..." class="filter-select" style="min-width: 180px;">
+            <button class="pill-badge" id="btn-export-csv" style="cursor: pointer;">📥 Unduh CSV</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="data-table" id="table-explorer">
+            <thead><!-- JS rendered --></thead>
+            <tbody><!-- JS rendered --></tbody>
+          </table>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 13px; color: var(--text-secondary);">
+          <span id="explorer-pagination-info">Menampilkan 0 dari 0 baris</span>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-page-prev" class="pill-badge" style="cursor: pointer;">◀️ Sebelumnya</button>
+            <button id="btn-page-next" class="pill-badge" style="cursor: pointer;">Berikutnya ▶️</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Main JavaScript App -->
+  <script src="app.js"></script>
+</body>
+</html>

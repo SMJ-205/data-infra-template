@@ -1,0 +1,30 @@
+version: 2
+
+exposures:
+  - name: gsheet_pnl_report
+    type: application
+    maturity: high
+    owner:
+      name: Data Team
+      email: data-team@fnb-platform.internal
+    depends_on:
+      - ref('mart_pnl_monthly')
+      - ref('mart_kpi_monthly_status')
+      - ref('mart_waste_analysis')
+      - ref('mart_menu_engineering')
+
+  - name: vercel_dashboard
+    type: dashboard
+    maturity: medium
+    owner:
+      name: Data Team
+      email: data-team@fnb-platform.internal
+    depends_on:
+      - ref('mart_pnl_daily')
+      - ref('mart_pnl_monthly')
+      - ref('mart_kpi_monthly_status')
+      - ref('mart_inventory_variance')
+      - ref('mart_waste_analysis')
+      - ref('mart_menu_engineering')
+      - ref('mart_channel_performance_daily')
+      - ref('mart_orders_hourly')

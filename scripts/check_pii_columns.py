@@ -21,5 +21,15 @@ for path in pathlib.Path(model_dir).rglob("*.yml"):
             if PII.search(col.get("name", "")) and meta.get("pii") not in ALLOWED:
                 bad.append(f"{path}: {model.get('name', 'unknown')}.{col.get('name', '')}")
 
+# Scan dashboard exported JSON files if directory exists
+data_dir = pathlib.Path("dashboard/public/data")
+if data_dir.exists():
+    raw_email_re = re.compile(r'"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"')
+    raw_phone_re = re.compile(r'"(?:\+62|08)[0-9]{8,12}"')
+    for jpath in data_dir.glob("*.json"):
+        text = jpath.read_text(encoding="utf-8")
+        if raw_email_re.search(text) or raw_phone_re.search(text):
+            bad.append(f"{jpath}: Terdeteksi raw email/nomor telepon di file JSON publik!")
+
 print("\n".join(bad) or "PII guard OK")
 sys.exit(1 if bad else 0)

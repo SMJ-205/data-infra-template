@@ -1,0 +1,14 @@
+{
+  "generated_at_utc": "2026-10-10T18:59:35+00:00",
+  "rows": {
+    "channel_daily": 6030,
+    "inventory_variance": 5148,
+    "kpi_status": 288,
+    "menu_engineering": 750,
+    "orders_hourly": 1267,
+    "pnl_daily": 1404,
+    "pnl_monthly": 48,
+    "waste": 2320
+  },
+  "total_size_kb": 5281.4
+}

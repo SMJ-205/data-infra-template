@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 16px; background: #f6f7f9; color: #1d2433; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    .card { background: #fff; border-radius: 8px; padding: 12px 16px; flex: 1 1 160px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+    .card .label { font-size: 12px; color: #5b6475; }
+    .card .value { font-size: 22px; font-weight: bold; margin-top: 4px; }
+    .card .delta { font-size: 12px; }
+    .bad { color: #b00020; } .good { color: #1b7f3b; }
+    .panel { background: #fff; border-radius: 8px; padding: 16px; flex: 1 1 420px; min-width: 0; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+    th { background: #f9fafb; font-weight: 600; }
+    .pill { padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #fff; }
+    .CRITICAL { background: #b00020; } .WARN { background: #c77700; } .OK { background: #1b7f3b; }
+  </style>
+</head>
+<body>
+  <h2 style="margin:0 0 4px">F&amp;B Performance Analytics</h2>
+  <div style="font-size:12px;color:#5b6475;margin-bottom:12px">
+    Outlet: <select id="outlet"></select> · Sync terakhir: <span id="sync">-</span>
+  </div>
+  <div class="row" id="cards"></div>
+  <div class="row">
+    <div class="panel"><canvas id="trend"></canvas></div>
+    <div class="panel"><canvas id="waste"></canvas></div>
+  </div>
+  <div class="row">
+    <div class="panel"><h4>Status KPI Terkini</h4><table id="kpi"></table></div>
+    <div class="panel"><h4>Menu Engineering (Kasavana-Smith)</h4><table id="menu"></table></div>
+  </div>
+
+<script>
+  const fmtRp = v => 'Rp ' + Math.round(v || 0).toLocaleString('id-ID');
+  const fmtPct = v => (v === '' || v === null ? '-' : Number(v).toFixed(1) + '%');
+  let DATA, trendChart, wasteChart;
+
+  google.script.run.withSuccessHandler(d => {
+    DATA = d;
+    document.getElementById('sync').textContent = d.lastSync || '-';
+    const outlets = [...new Set(d.pnl.map(r => r.outlet))].sort((a, b) => a === 'ALL' ? -1 : a.localeCompare(b));
+    const sel = document.getElementById('outlet');
+    sel.innerHTML = outlets.map(o => `<option>${o}</option>`).join('');
+    sel.onchange = render;
+    render();
+  }).getDashboardData();
+
+  function render() {
+    const outlet = document.getElementById('outlet').value;
+    const pnl = DATA.pnl.filter(r => r.outlet === outlet).sort((a, b) => a.month.localeCompare(b.month));
+    const complete = pnl.filter(r => r.is_complete_month === true);
+    const cur = complete[complete.length - 1] || {};
+    const prev = complete[complete.length - 2] || {};
+
+    const card = (label, key, isPct, higherIsBad) => {
+      const d = Number(cur[key] || 0) - Number(prev[key] || 0);
+      const cls = d === 0 ? '' : ((d > 0) === higherIsBad ? 'bad' : 'good');
+      const dTxt = isPct ? (d >= 0 ? '+' : '') + d.toFixed(1) + ' pp' : (d >= 0 ? '+' : '') + fmtRp(d);
+      return `<div class="card"><div class="label">${label} (${cur.month || '-'})</div>
+              <div class="value">${isPct ? fmtPct(cur[key]) : fmtRp(cur[key])}</div>
+              <div class="delta ${cls}">${dTxt} vs bulan sebelumnya</div></div>`;
+    };
+    document.getElementById('cards').innerHTML =
+      card('Net Sales', 'net_sales', false, false) +
+      card('Food Cost', 'food_cost_pct', true, true) +
+      card('Prime Cost', 'prime_cost_pct', true, true) +
+      card('Waste', 'waste_pct', true, true) +
+      card('EBITDA Margin', 'ebitda_margin_pct', true, false);
+
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(document.getElementById('trend'), {
+      data: {
+        labels: pnl.map(r => r.month),
+        datasets: [
+          { type: 'bar', label: 'Net Sales', data: pnl.map(r => r.net_sales), yAxisID: 'y', backgroundColor: '#3b82f6' },
+          { type: 'line', label: 'Food Cost %', data: pnl.map(r => r.food_cost_pct), yAxisID: 'y1', borderColor: '#ef4444', borderWidth: 2 },
+        ],
+      },
+      options: {
+        plugins: { title: { display: true, text: 'Net Sales & Food Cost % (12 bulan)' } },
+        scales: { y: { position: 'left' }, y1: { position: 'right', grid: { drawOnChartArea: false } } }
+      },
+    });
+
+    const waste = DATA.waste.filter(r => outlet === 'ALL' || r.outlet === outlet);
+    const byReason = {};
+    waste.forEach(r => { byReason[r.reason_name] = (byReason[r.reason_name] || 0) + Number(r.waste_cost); });
+    if (wasteChart) wasteChart.destroy();
+    wasteChart = new Chart(document.getElementById('waste'), {
+      type: 'bar',
+      data: { labels: Object.keys(byReason), datasets: [{ label: 'Waste cost 90 hari', data: Object.values(byReason), backgroundColor: '#f59e0b' }] },
+      options: { indexAxis: 'y', plugins: { title: { display: true, text: 'Waste by Reason (90 hari)' } } },
+    });
+
+    const kpi = DATA.kpi.filter(r => outlet === 'ALL' || r.outlet === outlet);
+    document.getElementById('kpi').innerHTML = '<tr><th>Bulan</th><th>Outlet</th><th>Metrik</th><th>Nilai</th><th>Status</th></tr>' +
+      kpi.map(r => `<tr><td>${r.month}${r.is_complete_month ? '' : ' (MTD)'}</td><td>${r.outlet}</td><td>${r.metric_name}</td>
+                    <td>${fmtPct(r.metric_value)}</td><td><span class="pill ${r.status}">${r.status}</span></td></tr>`).join('');
+
+    const menu = DATA.menu.filter(r => outlet === 'ALL' || r.outlet === outlet).slice(0, 15);
+    document.getElementById('menu').innerHTML = '<tr><th>Menu</th><th>Kelas</th><th>Qty</th><th>Mix</th><th>Avg CM</th></tr>' +
+      menu.map(r => `<tr><td>${r.menu_name}</td><td>${r.menu_class}</td><td>${r.qty_sold}</td>
+                     <td>${fmtPct(r.menu_mix_pct)}</td><td>${fmtRp(r.avg_cm)}</td></tr>`).join('');
+  }
+</script>
+</body>
+</html>
