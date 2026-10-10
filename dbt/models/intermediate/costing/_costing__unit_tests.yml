@@ -1,0 +1,33 @@
+unit_tests:
+  - name: test_item_explosion_handles_loss_and_prep
+    description: >
+      Espresso 18 g dengan loss 10% -> 20 g. Sirup aren batch 1.000 ml dari 500 g gula aren,
+      sehingga 30 ml sirup = 15 g gula aren.
+    model: int_item_explosion_daily
+    given:
+      - input: ref('util_dates')
+        rows:
+          - {date_day: 2026-01-15}
+      - input: ref('stg_pos__ingredients')
+        rows:
+          - {ingredient_id: ING_ESPR, is_prep_item: false}
+          - {ingredient_id: ING_PALM, is_prep_item: false}
+          - {ingredient_id: PRP_AREN, is_prep_item: true}
+      - input: ref('stg_pos__recipes')
+        rows:
+          - {recipe_id: R_AREN, menu_item_id: null, prep_ingredient_id: PRP_AREN, yield_qty: 1000, effective_from: 2025-07-01, effective_to: null}
+          - {recipe_id: R_KSA,  menu_item_id: MNU_KSA, prep_ingredient_id: null, yield_qty: 1, effective_from: 2025-07-01, effective_to: null}
+      - input: ref('stg_pos__recipe_lines')
+        rows:
+          - {recipe_id: R_AREN, ingredient_id: ING_PALM, qty_per_yield: 500, loss_pct: 0}
+          - {recipe_id: R_KSA,  ingredient_id: ING_ESPR, qty_per_yield: 18,  loss_pct: 10}
+          - {recipe_id: R_KSA,  ingredient_id: PRP_AREN, qty_per_yield: 30,  loss_pct: 0}
+      - input: ref('stg_pos__modifier_lines')
+        rows: []
+    expect:
+      rows:
+        - {date_day: 2026-01-15, item_type: Menu Item,  item_id: MNU_KSA,  ingredient_id: ING_ESPR, qty_per_unit: 20}
+        - {date_day: 2026-01-15, item_type: Menu Item,  item_id: MNU_KSA,  ingredient_id: ING_PALM, qty_per_unit: 15}
+        - {date_day: 2026-01-15, item_type: Prep Item,  item_id: PRP_AREN, ingredient_id: ING_PALM, qty_per_unit: 0.5}
+        - {date_day: 2026-01-15, item_type: Ingredient, item_id: ING_ESPR, ingredient_id: ING_ESPR, qty_per_unit: 1}
+        - {date_day: 2026-01-15, item_type: Ingredient, item_id: ING_PALM, ingredient_id: ING_PALM, qty_per_unit: 1}

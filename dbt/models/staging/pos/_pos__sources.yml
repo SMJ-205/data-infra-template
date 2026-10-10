@@ -1,0 +1,37 @@
+version: 2
+
+sources:
+  - name: pos
+    description: OLTP POS & inventori F&B (Neon Postgres, schema fnb), di-ingest dlt ke raw_fnb.
+    database: "{{ env_var('GCP_PROJECT_ID', 'fnb-data-platform') }}"
+    schema: raw_fnb
+    tables:
+      - name: orders
+      - name: order_items
+      - name: order_item_modifiers
+      - name: payments
+      - name: refunds
+      - name: waste_logs
+      - name: goods_receipts
+      - name: goods_receipt_lines
+      - name: stock_counts
+      - name: stock_count_lines
+      - name: outlets
+      - name: employees
+      - name: customers
+      - name: sales_channels
+      - name: channel_commission_rates
+      - name: promotions
+      - name: menu_categories
+      - name: menu_items
+      - name: menu_item_prices
+      - name: modifiers
+      - name: modifier_lines
+      - name: ingredients
+      - name: ingredient_standard_costs
+      - name: suppliers
+      - name: recipes
+      - name: recipe_lines
+      - name: waste_reasons
+      - name: expense_categories
+      - name: operating_expenses

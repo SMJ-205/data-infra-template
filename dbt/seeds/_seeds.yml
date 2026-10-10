@@ -1,0 +1,23 @@
+version: 2
+
+seeds:
+  - name: kpi_thresholds
+    config:
+      schema: core
+      column_types:
+        metric_code: string
+        metric_name: string
+        direction: string
+        warn_threshold: numeric
+        critical_threshold: numeric
+        effective_from: date
+        effective_to: date
+
+  - name: id_calendar_events
+    config:
+      schema: core
+      column_types:
+        event_name: string
+        event_type: string
+        start_date: date
+        end_date: date

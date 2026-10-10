@@ -1,0 +1,7 @@
+metric_code,metric_name,direction,warn_threshold,critical_threshold,effective_from,effective_to
+food_cost_pct,Food Cost %,higher_is_worse,32,35,2025-01-01,
+waste_pct,Waste to Sales %,higher_is_worse,2,3,2025-01-01,
+prime_cost_pct,Prime Cost %,higher_is_worse,60,65,2025-01-01,
+gross_margin_pct,Gross Margin %,lower_is_worse,65,60,2025-01-01,
+inventory_variance_pct,Unexplained Inventory Variance %,higher_is_worse,1,2,2025-01-01,
+channel_cost_pct,Channel Commission %,higher_is_worse,10,13,2025-01-01,

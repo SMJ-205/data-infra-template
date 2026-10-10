@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: stg_pos__customers
+    description: Staging customer dengan perlindungan PII.
+    columns:
+      - name: customer_id
+        description: Primary key customer.
+        data_tests:
+          - not_null
+          - unique
+      - name: phone_hash
+        description: SHA-256 + salt dari phone_number.
+        meta:
+          pii: hashed
+      - name: email_hash
+        description: SHA-256 + salt dari lowercase trimmed email.
+        meta:
+          pii: hashed
+      - name: birth_year
+        description: Tahun lahir (generalisasi).
+        meta:
+          pii: generalized
+
+  - name: stg_pos__orders
+    description: Staging tabel orders.
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+      - name: outlet_id
+        data_tests:
+          - not_null
+      - name: order_date
+        data_tests:
+          - not_null
+
+  - name: stg_pos__order_items
+    description: Staging detail order items.
+    columns:
+      - name: order_item_id
+        data_tests:
+          - not_null
+          - unique
+      - name: order_id
+        data_tests:
+          - not_null
+      - name: menu_item_id
+        data_tests:
+          - not_null

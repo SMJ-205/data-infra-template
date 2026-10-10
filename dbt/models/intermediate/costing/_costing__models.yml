@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: int_item_std_cost_daily
+    description: Standard cost harian per item (menu, modifier, prep, ingredient).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [date_day, item_type, item_id]
+    columns:
+      - name: n_components_missing_cost
+        description: Jumlah komponen tanpa standard cost. Wajib 0 agar HPP akurat.
+        data_tests:
+          - accepted_values:
+              values: [0]
+              quote: false
