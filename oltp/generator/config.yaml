@@ -1,0 +1,134 @@
+# Konfigurasi generator POS simulasi (data sintetis, deterministik per tanggal).
+seed: 20250701
+timezone_offset_hours: 7          # Asia/Jakarta (tanpa DST)
+start_date: 2025-07-01
+default_end_date: 2026-10-09
+
+outlets:
+  FLG-01:
+    short: FLG
+    index: 1
+    base_orders: 260
+    offline_share: 0.70
+    offline_split: {DINE_IN: 0.60, TAKEAWAY: 0.40}
+    online_split: {GOFOOD: 0.45, GRABFOOD: 0.35, SHOPEEFOOD: 0.20}
+    service_charge_pct: 5.0            # hanya dine-in
+    staff: {Outlet Manager: 1, Supervisor: 1, Cashier: 3, Barista: 4, Cook: 3}
+    opex: {LABOR: 180000000, RENT: 85000000, ELEC: 28000000, REPAIR: 10000000, MKT: 25000000}
+  KIOSK-02:
+    short: KSK
+    index: 2
+    base_orders: 150
+    offline_share: 0.80
+    offline_split: {DINE_IN: 0.10, TAKEAWAY: 0.90}
+    online_split: {GOFOOD: 0.50, GRABFOOD: 0.30, SHOPEEFOOD: 0.20}
+    service_charge_pct: 0.0
+    staff: {Outlet Manager: 1, Supervisor: 1, Cashier: 2, Barista: 3, Cook: 1}
+    opex: {LABOR: 85000000, RENT: 40000000, ELEC: 14000000, REPAIR: 5000000, MKT: 12000000}
+    overpour: {ING_MILK: 0.06}        # story event: susu terpakai 6% lebih banyak dari resep, tidak tercatat
+  CLOUD-03:
+    short: CLD
+    index: 3
+    base_orders: 130
+    offline_share: 0.0
+    offline_split: {}
+    online_split: {GOFOOD: 0.50, GRABFOOD: 0.30, SHOPEEFOOD: 0.20}
+    service_charge_pct: 0.0
+    staff: {Outlet Manager: 1, Supervisor: 1, Cashier: 1, Barista: 2, Cook: 4}
+    opex: {LABOR: 55000000, RENT: 20000000, ELEC: 12000000, REPAIR: 3000000, MKT: 20000000}
+
+hq_opex: {ADMIN: 60000000, MKT: 30000000}
+opex_noise_pct: 3.0
+
+demand:
+  dow_factor: {0: 0.85, 1: 0.95, 2: 0.95, 3: 0.95, 4: 1.10, 5: 1.30, 6: 1.20}   # 0 = Senin
+  payday_factor: 1.12                    # tanggal 25..akhir bulan dan tanggal 1
+  rain_prob: 0.35
+  rain_prob_wet_season: 0.60             # Nov..Mar
+  wet_season_months: [11, 12, 1, 2, 3]
+  rain_offline_factor: 0.80
+  rain_online_factor: 1.25
+  items_poisson_lambda: 1.3              # item per order = 1 + Poisson(lambda)
+  qty2_prob: 0.12
+  modifier_prob: 0.35
+  online_promo_prob: 0.25
+  offline_promo_prob: 0.05
+  member_prob: 0.30
+  cancel_prob: {Offline: 0.01, Online Delivery: 0.04}
+  void_line_prob: 0.008
+  item_discount_prob: 0.03
+  late_sync_prob: 0.01                   # order offline tersinkron H+1
+  refund_prob_online: 0.003              # refund H+1 kanal online
+  refund_item_level_prob: 0.40
+  new_customers_per_day: 8
+  # distribusi jam (07..21) -- puncak 07-09, 12-13, 16-18 offline; 19-21 online
+  hour_weights_offline: {7: 8, 8: 11, 9: 9, 10: 5, 11: 6, 12: 10, 13: 9, 14: 5, 15: 5, 16: 8, 17: 9, 18: 7, 19: 4, 20: 3, 21: 1}
+  hour_weights_online:  {10: 3, 11: 8, 12: 11, 13: 9, 14: 4, 15: 4, 16: 5, 17: 7, 18: 9, 19: 12, 20: 11, 21: 6, 3: 0, 4: 0}
+  ramadan:
+    - {start: 2026-02-18, end: 2026-03-19}
+  closed_days: [2026-03-20, 2026-03-21]  # Lebaran: semua outlet tutup
+  ramadan_hour_multiplier: {11: 0.55, 12: 0.55, 13: 0.55, 14: 0.55, 15: 0.55, 17: 1.4, 18: 1.8}
+  ramadan_sahur_online: {3: 1.2, 4: 1.0}  # bobot tambahan (relatif thd total hari) hanya online
+
+# bobot popularitas menu; pengali per kanal online (kategori)
+menu_weight: {MNU_AMERICANO: 14, MNU_LATTE: 12, MNU_KSAREN: 18, MNU_CAPPU: 7, MNU_COLDBREW: 6, MNU_OATLATTE: 5,
+              MNU_CHOCO: 3, MNU_MATCHA: 4, MNU_LEMONTEA: 5, MNU_ICETEA: 6, MNU_CROIS: 5, MNU_TOAST: 3,
+              MNU_NGORENG: 6, MNU_MIEGOR: 3, MNU_CHKRICE: 5, MNU_EGGSAND: 3}
+online_category_multiplier: {Food: 1.6, Bakery: 0.6, Beverage: 1.0}
+
+# modifier yang berlaku per menu
+menu_modifiers:
+  MNU_AMERICANO: [MOD_XSHOT, MOD_LARGE]
+  MNU_LATTE: [MOD_XSHOT, MOD_OAT, MOD_LARGE]
+  MNU_KSAREN: [MOD_XSHOT, MOD_LESSSUG, MOD_XAREN, MOD_LARGE]
+  MNU_CAPPU: [MOD_XSHOT, MOD_OAT, MOD_LARGE]
+  MNU_COLDBREW: [MOD_XSHOT, MOD_LARGE]
+  MNU_OATLATTE: [MOD_XSHOT, MOD_LARGE]
+  MNU_CHOCO: [MOD_OAT]
+  MNU_MATCHA: [MOD_OAT, MOD_LESSSUG]
+  MNU_TOAST: [MOD_XCHEESE]
+  MNU_EGGSAND: [MOD_XCHEESE]
+
+payments:
+  offline_methods: {QRIS: 0.45, Cash: 0.20, Debit Card: 0.15, Credit Card: 0.05, E-Wallet: 0.15}
+  split_prob: 0.05
+  mdr_pct: {QRIS: 0.7, Debit Card: 1.0, Credit Card: 2.0, E-Wallet: 1.5, Cash: 0.0, Platform Settlement: 0.0}
+
+promos:
+  offline: [HEMAT10]
+  online_merchant: [HEMAT10, POTONG5K]
+  online_platform: {GOFOOD: GOFOOD15, GRABFOOD: GRAB20, SHOPEEFOOD: SHOPEE12}
+  online_platform_prob: 0.60
+
+inventory:
+  count_noise_sd: 0.005
+  waste_item_prob: 0.004                 # produk jatuh / QC reject
+  prep_spoil_prob: 0.08
+  prep_spoil_fraction: 0.5
+  par_days: 4
+  par_safety: 1.2
+  daily_delivery_shelf_life_max: 4       # perishable <= 4 hari dikirim tiap hari
+  receipt_weekdays: [0, 3]               # Senin & Kamis
+  price_noise_sd: 0.04
+  # bahan -> (supplier, purchase_uom, qty base per purchase uom)
+  purchasing:
+    ING_ESPR:   [SUP01, kg, 1000]
+    ING_MATCHA: [SUP01, kg, 1000]
+    ING_TEA:    [SUP01, kg, 1000]
+    ING_CHOC:   [SUP01, kg, 1000]
+    ING_MILK:   [SUP02, liter, 1000]
+    ING_OAT:    [SUP02, liter, 1000]
+    ING_CHSE:   [SUP02, kg, 1000]
+    ING_CROIS:  [SUP03, karton, 24]
+    ING_BREAD:  [SUP03, pack, 20]
+    ING_CHKN:   [SUP04, kg, 1000]
+    ING_VEG:    [SUP04, kg, 1000]
+    ING_LEMON:  [SUP04, pack, 10]
+    ING_EGG:    [SUP04, tray, 30]
+    ING_CUP:    [SUP05, pack, 50]
+    ING_BOX:    [SUP05, pack, 50]
+    ING_WATR:   [SUP06, galon, 19000]
+    ING_SUGR:   [SUP06, kg, 1000]
+    ING_PALM:   [SUP06, liter, 1000]
+    ING_RICE:   [SUP06, kg, 1000]
+    ING_NOOD:   [SUP06, kg, 1000]
