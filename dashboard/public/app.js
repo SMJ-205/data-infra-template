@@ -195,12 +195,7 @@ function setupCategoryPills() {
         selectMenuCat.value = cat === 'ALL' || cat === 'Online' || cat === 'Snacks' ? 'ALL' : cat;
       }
 
-      if (cat !== 'ALL' && state.activeTab !== 'menu') {
-        const menuTabBtn = document.getElementById('tab-btn-menu');
-        if (menuTabBtn) menuTabBtn.click();
-      } else {
-        renderActiveTab();
-      }
+      renderActiveTab();
     });
   });
 }
