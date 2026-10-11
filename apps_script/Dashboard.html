@@ -1,69 +1,269 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
+  <meta charset="utf-8">
   <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>F&amp;B Performance Analytics</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 16px; background: #f6f7f9; color: #1d2433; }
-    .row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-    .card { background: #fff; border-radius: 8px; padding: 12px 16px; flex: 1 1 160px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-    .card .label { font-size: 12px; color: #5b6475; }
-    .card .value { font-size: 22px; font-weight: bold; margin-top: 4px; }
-    .card .delta { font-size: 12px; }
-    .bad { color: #b00020; } .good { color: #1b7f3b; }
-    .panel { background: #fff; border-radius: 8px; padding: 16px; flex: 1 1 420px; min-width: 0; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --good: #16a34a;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --star: #059669;
+      --plowhorse: #2563eb;
+      --puzzle: #d97706;
+      --dog: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header h2 { margin: 0; font-size: 20px; font-weight: 700; color: #1e293b; }
+    .controls { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); }
+    .controls select {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      color: var(--text-main);
+      outline: none;
+      cursor: pointer;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      flex: 1 1 180px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08); }
+    .card .label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .card .value { font-size: 24px; font-weight: 700; margin: 8px 0 4px; color: #1e293b; }
+    .card .delta { font-size: 12px; font-weight: 500; }
+    .bad { color: var(--bad); }
+    .good { color: var(--good); }
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      flex: 1 1 450px;
+      min-width: 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .panel h4 { margin: 0 0 14px; font-size: 15px; font-weight: 600; color: #1e293b; }
+    .chart-container { position: relative; height: 260px; width: 100%; }
+    .table-container { overflow-x: auto; max-height: 380px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
-    th { background: #f9fafb; font-weight: 600; }
-    .pill { padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #fff; }
-    .CRITICAL { background: #b00020; } .WARN { background: #c77700; } .OK { background: #1b7f3b; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    th { background: #f8fafc; font-weight: 600; color: #475569; position: sticky; top: 0; z-index: 1; }
+    tbody tr:hover { background: #f1f5f9; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .pill.CRITICAL { background: var(--bad); }
+    .pill.WARN { background: var(--warn); }
+    .pill.OK { background: var(--good); }
+    .class-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .class-Star { background: var(--star); }
+    .class-Plowhorse { background: var(--plowhorse); }
+    .class-Puzzle { background: var(--puzzle); }
+    .class-Dog { background: var(--dog); }
+
+    /* Loading & State Banners */
+    .state-banner {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 40px 20px;
+      text-align: center;
+      margin: 40px auto;
+      max-width: 520px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <h2 style="margin:0 0 4px">F&amp;B Performance Analytics</h2>
-  <div style="font-size:12px;color:#5b6475;margin-bottom:12px">
-    Outlet: <select id="outlet"></select> · Sync terakhir: <span id="sync">-</span>
+  <div class="header">
+    <div>
+      <h2>F&amp;B Performance Analytics</h2>
+      <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+        Google Sheets Cache &amp; Apps Script Web App
+      </div>
+    </div>
+    <div class="controls" id="header-controls" style="display:none;">
+      <label for="outlet">Outlet:</label>
+      <select id="outlet"></select>
+      <span>· Sync: <span id="sync" style="font-weight: 500;">-</span></span>
+    </div>
   </div>
-  <div class="row" id="cards"></div>
-  <div class="row">
-    <div class="panel"><canvas id="trend"></canvas></div>
-    <div class="panel"><canvas id="waste"></canvas></div>
+
+  <div id="loading-state" class="state-banner">
+    <div class="spinner"></div>
+    <div style="font-size: 14px; color: var(--text-muted);">Memuat data dari Google Sheets cache...</div>
   </div>
-  <div class="row">
-    <div class="panel"><h4>Status KPI Terkini</h4><table id="kpi"></table></div>
-    <div class="panel"><h4>Menu Engineering (Kasavana-Smith)</h4><table id="menu"></table></div>
+
+  <div id="error-state" class="state-banner" style="display:none; border-color: #fecaca; background: #fff5f5;">
+    <div style="font-size: 18px; font-weight: 600; color: var(--bad); margin-bottom: 6px;">Gagal Memuat Data</div>
+    <div id="error-message" style="font-size: 13px; color: #7f1d1d; margin-bottom: 12px;"></div>
+    <div style="font-size: 12px; color: var(--text-muted);">
+      Pastikan tab di spreadsheet telah terisi dengan menjalankan menu <b>F&amp;B Report &gt; Sync sekarang</b>.
+    </div>
+  </div>
+
+  <div id="dashboard-content" style="display:none;">
+    <div class="row" id="cards"></div>
+    <div class="row">
+      <div class="panel">
+        <div class="chart-container"><canvas id="trend"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="chart-container"><canvas id="waste"></canvas></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="panel">
+        <h4>Status KPI Terkini</h4>
+        <div class="table-container"><table id="kpi"></table></div>
+      </div>
+      <div class="panel">
+        <h4>Menu Engineering (Kasavana-Smith)</h4>
+        <div class="table-container"><table id="menu"></table></div>
+      </div>
+    </div>
   </div>
 
 <script>
-  const fmtRp = v => 'Rp ' + Math.round(v || 0).toLocaleString('id-ID');
-  const fmtPct = v => (v === '' || v === null ? '-' : Number(v).toFixed(1) + '%');
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  const fmtRp = v => (v === '' || v === null || v === undefined || isNaN(v) ? 'Rp 0' : 'Rp ' + Math.round(Number(v)).toLocaleString('id-ID'));
+  const fmtPct = v => (v === '' || v === null || v === undefined || isNaN(v) ? '-' : Number(v).toFixed(1) + '%');
+  const isCompleteMonth = r => r && (r.is_complete_month === true || String(r.is_complete_month).toLowerCase() === 'true');
+
   let DATA, trendChart, wasteChart;
 
-  google.script.run.withSuccessHandler(d => {
+  google.script.run
+    .withSuccessHandler(onDataLoaded)
+    .withFailureHandler(onDataError)
+    .getDashboardData();
+
+  function onDataError(err) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-state').style.display = 'block';
+    document.getElementById('error-message').textContent = err && err.message ? err.message : String(err);
+  }
+
+  function onDataLoaded(d) {
     DATA = d;
-    document.getElementById('sync').textContent = d.lastSync || '-';
-    const outlets = [...new Set(d.pnl.map(r => r.outlet))].sort((a, b) => a === 'ALL' ? -1 : a.localeCompare(b));
+    document.getElementById('loading-state').style.display = 'none';
+
+    if (!d || !d.pnl || d.pnl.length === 0) {
+      document.getElementById('error-state').style.display = 'block';
+      document.getElementById('error-message').textContent = 'Belum ada data cache PnL di spreadsheet.';
+      return;
+    }
+
+    document.getElementById('header-controls').style.display = 'flex';
+    document.getElementById('dashboard-content').style.display = 'block';
+
+    const syncEl = document.getElementById('sync');
+    if (d.lastSync) {
+      const syncDate = new Date(d.lastSync);
+      syncEl.textContent = isNaN(syncDate.getTime()) ? d.lastSync : syncDate.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+    } else {
+      syncEl.textContent = '-';
+    }
+
+    const outlets = [...new Set(d.pnl.map(r => r.outlet || 'ALL'))].sort((a, b) => a === 'ALL' ? -1 : a.localeCompare(b));
     const sel = document.getElementById('outlet');
-    sel.innerHTML = outlets.map(o => `<option>${o}</option>`).join('');
+    sel.innerHTML = outlets.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
     sel.onchange = render;
     render();
-  }).getDashboardData();
+  }
 
   function render() {
     const outlet = document.getElementById('outlet').value;
-    const pnl = DATA.pnl.filter(r => r.outlet === outlet).sort((a, b) => a.month.localeCompare(b.month));
-    const complete = pnl.filter(r => r.is_complete_month === true);
-    const cur = complete[complete.length - 1] || {};
-    const prev = complete[complete.length - 2] || {};
+    const pnl = DATA.pnl.filter(r => (r.outlet || 'ALL') === outlet).sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+    const complete = pnl.filter(isCompleteMonth);
+    const cur = complete.length > 0 ? complete[complete.length - 1] : (pnl[pnl.length - 1] || {});
+    const prev = complete.length > 1 ? complete[complete.length - 2] : {};
 
     const card = (label, key, isPct, higherIsBad) => {
-      const d = Number(cur[key] || 0) - Number(prev[key] || 0);
-      const cls = d === 0 ? '' : ((d > 0) === higherIsBad ? 'bad' : 'good');
-      const dTxt = isPct ? (d >= 0 ? '+' : '') + d.toFixed(1) + ' pp' : (d >= 0 ? '+' : '') + fmtRp(d);
-      return `<div class="card"><div class="label">${label} (${cur.month || '-'})</div>
-              <div class="value">${isPct ? fmtPct(cur[key]) : fmtRp(cur[key])}</div>
-              <div class="delta ${cls}">${dTxt} vs bulan sebelumnya</div></div>`;
+      const curVal = cur[key];
+      const prevVal = prev[key];
+      const hasPrev = prevVal !== undefined && prevVal !== null && prevVal !== '';
+      const d = hasPrev ? Number(curVal || 0) - Number(prevVal || 0) : 0;
+      const cls = !hasPrev || d === 0 ? '' : ((d > 0) === higherIsBad ? 'bad' : 'good');
+      const dTxt = hasPrev
+        ? (isPct ? (d >= 0 ? '+' : '') + d.toFixed(1) + ' pp' : (d >= 0 ? '+' : '') + fmtRp(d)) + ' vs bulan sebelumnya'
+        : 'Bulan berjalan';
+
+      return `<div class="card">
+                <div class="label">${escapeHtml(label)} (${escapeHtml(cur.month || '-')})</div>
+                <div class="value">${isPct ? fmtPct(curVal) : fmtRp(curVal)}</div>
+                <div class="delta ${cls}">${dTxt}</div>
+              </div>`;
     };
+
     document.getElementById('cards').innerHTML =
       card('Net Sales', 'net_sales', false, false) +
       card('Food Cost', 'food_cost_pct', true, true) +
@@ -71,40 +271,90 @@
       card('Waste', 'waste_pct', true, true) +
       card('EBITDA Margin', 'ebitda_margin_pct', true, false);
 
+    // Trend Chart
     if (trendChart) trendChart.destroy();
     trendChart = new Chart(document.getElementById('trend'), {
       data: {
         labels: pnl.map(r => r.month),
         datasets: [
-          { type: 'bar', label: 'Net Sales', data: pnl.map(r => r.net_sales), yAxisID: 'y', backgroundColor: '#3b82f6' },
-          { type: 'line', label: 'Food Cost %', data: pnl.map(r => r.food_cost_pct), yAxisID: 'y1', borderColor: '#ef4444', borderWidth: 2 },
+          { type: 'bar', label: 'Net Sales', data: pnl.map(r => r.net_sales), yAxisID: 'y', backgroundColor: '#3b82f6', borderRadius: 4 },
+          { type: 'line', label: 'Food Cost %', data: pnl.map(r => r.food_cost_pct), yAxisID: 'y1', borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 2, tension: 0.1 },
         ],
       },
       options: {
-        plugins: { title: { display: true, text: 'Net Sales & Food Cost % (12 bulan)' } },
-        scales: { y: { position: 'left' }, y1: { position: 'right', grid: { drawOnChartArea: false } } }
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: 'Net Sales & Food Cost % (12 bulan)', font: { size: 14, weight: 'bold' } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.datasetIndex === 0 ? 'Net Sales: ' + fmtRp(ctx.raw) : 'Food Cost: ' + fmtPct(ctx.raw)
+            }
+          }
+        },
+        scales: {
+          y: { position: 'left', ticks: { callback: v => fmtRp(v) } },
+          y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } }
+        }
       },
     });
 
-    const waste = DATA.waste.filter(r => outlet === 'ALL' || r.outlet === outlet);
+    // Waste Chart
+    const waste = (DATA.waste || []).filter(r => outlet === 'ALL' || r.outlet === outlet);
     const byReason = {};
-    waste.forEach(r => { byReason[r.reason_name] = (byReason[r.reason_name] || 0) + Number(r.waste_cost); });
+    waste.forEach(r => {
+      const reason = r.reason_name || 'Lainnya';
+      byReason[reason] = (byReason[reason] || 0) + Number(r.waste_cost || 0);
+    });
+    const wasteLabels = Object.keys(byReason);
+    const wasteValues = Object.values(byReason);
+
     if (wasteChart) wasteChart.destroy();
     wasteChart = new Chart(document.getElementById('waste'), {
       type: 'bar',
-      data: { labels: Object.keys(byReason), datasets: [{ label: 'Waste cost 90 hari', data: Object.values(byReason), backgroundColor: '#f59e0b' }] },
-      options: { indexAxis: 'y', plugins: { title: { display: true, text: 'Waste by Reason (90 hari)' } } },
+      data: {
+        labels: wasteLabels,
+        datasets: [{ label: 'Waste Cost', data: wasteValues, backgroundColor: '#f59e0b', borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: 'Waste by Reason (90 hari)', font: { size: 14, weight: 'bold' } },
+          tooltip: { callbacks: { label: ctx => 'Waste: ' + fmtRp(ctx.raw) } }
+        },
+        scales: { x: { ticks: { callback: v => fmtRp(v) } } }
+      },
     });
 
-    const kpi = DATA.kpi.filter(r => outlet === 'ALL' || r.outlet === outlet);
-    document.getElementById('kpi').innerHTML = '<tr><th>Bulan</th><th>Outlet</th><th>Metrik</th><th>Nilai</th><th>Status</th></tr>' +
-      kpi.map(r => `<tr><td>${r.month}${r.is_complete_month ? '' : ' (MTD)'}</td><td>${r.outlet}</td><td>${r.metric_name}</td>
-                    <td>${fmtPct(r.metric_value)}</td><td><span class="pill ${r.status}">${r.status}</span></td></tr>`).join('');
+    // KPI Table
+    const kpi = (DATA.kpi || []).filter(r => outlet === 'ALL' || r.outlet === outlet);
+    const kpiHtml = '<thead><tr><th>Bulan</th><th>Outlet</th><th>Metrik</th><th>Nilai</th><th>Status</th></tr></thead><tbody>' +
+      (kpi.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Tidak ada KPI di luar normal</td></tr>'
+        : kpi.map(r => `<tr>
+            <td>${escapeHtml(r.month)}${isCompleteMonth(r) ? '' : ' (MTD)'}</td>
+            <td>${escapeHtml(r.outlet)}</td>
+            <td>${escapeHtml(r.metric_name)}</td>
+            <td>${fmtPct(r.metric_value)}</td>
+            <td><span class="pill ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></td>
+          </tr>`).join('')) + '</tbody>';
+    document.getElementById('kpi').innerHTML = kpiHtml;
 
-    const menu = DATA.menu.filter(r => outlet === 'ALL' || r.outlet === outlet).slice(0, 15);
-    document.getElementById('menu').innerHTML = '<tr><th>Menu</th><th>Kelas</th><th>Qty</th><th>Mix</th><th>Avg CM</th></tr>' +
-      menu.map(r => `<tr><td>${r.menu_name}</td><td>${r.menu_class}</td><td>${r.qty_sold}</td>
-                     <td>${fmtPct(r.menu_mix_pct)}</td><td>${fmtRp(r.avg_cm)}</td></tr>`).join('');
+    // Menu Engineering Table
+    const menu = (DATA.menu || []).filter(r => outlet === 'ALL' || r.outlet === outlet).slice(0, 15);
+    const menuHtml = '<thead><tr><th>Menu</th><th>Kelas</th><th>Qty</th><th>Mix</th><th>Avg CM</th></tr></thead><tbody>' +
+      (menu.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Belum ada data menu engineering</td></tr>'
+        : menu.map(r => `<tr>
+            <td>${escapeHtml(r.menu_name)}</td>
+            <td><span class="class-pill class-${escapeHtml(r.menu_class)}">${escapeHtml(r.menu_class)}</span></td>
+            <td>${Number(r.qty_sold || 0).toLocaleString('id-ID')}</td>
+            <td>${fmtPct(r.menu_mix_pct)}</td>
+            <td>${fmtRp(r.avg_cm)}</td>
+          </tr>`).join('')) + '</tbody>';
+    document.getElementById('menu').innerHTML = menuHtml;
   }
 </script>
 </body>

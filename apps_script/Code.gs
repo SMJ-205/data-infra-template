@@ -61,14 +61,19 @@ function runQuery_(sql) {
 function cast_(v, type) {
   if (v === null || v === undefined) return '';
   if (['INTEGER', 'INT64', 'FLOAT', 'FLOAT64', 'NUMERIC', 'BIGNUMERIC'].indexOf(type) >= 0) return Number(v);
-  if (type === 'BOOLEAN' || type === 'BOOL') return v === 'true';
+  if (type === 'BOOLEAN' || type === 'BOOL') return v === true || v === 'true';
   return v;
 }
 
 // ------------------------------------------------------------------ Sheets
 function ss_() {
-  return SpreadsheetApp.getActiveSpreadsheet()
-    || SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID'));
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) return active;
+  const sheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (!sheetId) {
+    throw new Error('Spreadsheet tidak ditemukan. Jika script dijalankan standalone (bukan container-bound), set Script Property "SPREADSHEET_ID".');
+  }
+  return SpreadsheetApp.openById(sheetId);
 }
 
 /** Tulis hasil query ke tab; format & chart di tab dipertahankan (clearContents, bukan clear). */
@@ -175,12 +180,25 @@ function syncMenu_() {
     SELECT outlet_id AS outlet, menu_name, category_name, menu_class, qty_sold,
            ROUND(menu_mix_pct * 100, 2) AS menu_mix_pct, ROUND(avg_contribution_margin, 0) AS avg_cm
     FROM ${table_('mart_menu_engineering')}
-    WHERE report_month = DATE_SUB(DATE_TRUNC(CURRENT_DATE('${TZ}'), MONTH), INTERVAL 1 MONTH)
+    WHERE report_month = COALESCE(
+      (SELECT MAX(report_month) FROM ${table_('mart_menu_engineering')} WHERE report_month < DATE_TRUNC(CURRENT_DATE('${TZ}'), MONTH)),
+      (SELECT MAX(report_month) FROM ${table_('mart_menu_engineering')})
+    )
     ORDER BY outlet, qty_sold DESC`;
   writeTable_('Menu_Engineering', runQuery_(sql), { [RP]: ['avg_cm'], [PCT]: ['menu_mix_pct'] });
 }
 
 // ------------------------------------------------------------------ Alert
+function escapeHtml_(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function notifyAlerts_(kpi) {
   const h = kpi.header;
   const col = name => h.indexOf(name);
@@ -202,10 +220,12 @@ function notifyAlerts_(kpi) {
   if (props.getProperty('LAST_ALERT_SIG') === signature) return;
 
   const rowsHtml = alerts.map(r =>
-    `<tr><td>${r[col('month')]}${r[col('is_complete_month')] ? '' : ' (MTD)'}</td><td>${r[col('outlet')]}</td>` +
-    `<td>${r[col('metric_name')]}</td><td>${r[col('metric_value')]}%</td>` +
-    `<td>${r[col('warn_threshold')]}% / ${r[col('critical_threshold')]}%</td>` +
-    `<td style="color:${r[col('status')] === 'CRITICAL' ? '#b00020' : '#a15c00'}"><b>${r[col('status')]}</b></td></tr>`
+    `<tr><td>${escapeHtml_(r[col('month')])}${r[col('is_complete_month')] ? '' : ' (MTD)'}</td>` +
+    `<td>${escapeHtml_(r[col('outlet')])}</td>` +
+    `<td>${escapeHtml_(r[col('metric_name')])}</td>` +
+    `<td>${escapeHtml_(r[col('metric_value')])}%</td>` +
+    `<td>${escapeHtml_(r[col('warn_threshold')])}% / ${escapeHtml_(r[col('critical_threshold')])}%</td>` +
+    `<td style="color:${r[col('status')] === 'CRITICAL' ? '#b00020' : '#a15c00'}"><b>${escapeHtml_(r[col('status')])}</b></td></tr>`
   ).join('');
 
   MailApp.sendEmail({
