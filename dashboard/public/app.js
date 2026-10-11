@@ -1,6 +1,6 @@
 /**
- * F&B Multi-Outlet Analytics Platform
- * Front-end Application logic & Chart.js rendering
+ * GoMeal. - Modern F&B Multi-Outlet Analytics & Cost Control Platform
+ * Front-end Application logic & Chart.js rendering (GoMeal Theme)
  */
 
 // State
@@ -20,15 +20,34 @@ const state = {
   charts: {},
 };
 
+// Global Chart.js Light Theme Configuration
+if (window.Chart) {
+  Chart.defaults.font.family = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+  Chart.defaults.font.weight = '600';
+  Chart.defaults.color = '#7E8299';
+  Chart.defaults.scale.grid.color = '#F0F1F6';
+  Chart.defaults.plugins.tooltip.backgroundColor = '#FFFFFF';
+  Chart.defaults.plugins.tooltip.titleColor = '#1C1D21';
+  Chart.defaults.plugins.tooltip.bodyColor = '#464E5F';
+  Chart.defaults.plugins.tooltip.borderColor = '#EFF0F6';
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.cornerRadius = 12;
+  Chart.defaults.plugins.tooltip.boxPadding = 6;
+  Chart.defaults.plugins.tooltip.padding = 12;
+  Chart.defaults.plugins.tooltip.usePointStyle = true;
+}
+
 // Utilities
 const fmtRp = (v) => 'Rp ' + Math.round(Number(v) || 0).toLocaleString('id-ID');
-const fmtPct = (v) => (v === null || v === undefined || isNaN(v) ? '-' : (Number(v)).toFixed(1) + '%');
+const fmtPct = (v) => (v === null || v === undefined || isNaN(v) ? '-' : Number(v).toFixed(1) + '%');
 const fmtNum = (v) => Math.round(Number(v) || 0).toLocaleString('id-ID');
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', async () => {
   setupTabs();
   setupFilterListeners();
+  setupCategoryPills();
+  setupGlobalSearch();
   setupSimulator();
   setupExplorer();
   await loadData();
@@ -69,6 +88,48 @@ function setupFilterListeners() {
   });
 }
 
+function setupCategoryPills() {
+  const pills = document.querySelectorAll('.category-pill-card');
+  pills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      pills.forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      const cat = pill.getAttribute('data-cat');
+      state.selectedCategory = cat;
+
+      const selectMenuCat = document.getElementById('select-menu-category');
+      if (selectMenuCat) {
+        selectMenuCat.value = cat === 'ALL' || cat === 'Online' || cat === 'Snacks' ? 'ALL' : cat;
+      }
+
+      if (cat !== 'ALL' && state.activeTab !== 'menu') {
+        const menuTabBtn = document.getElementById('tab-btn-menu');
+        if (menuTabBtn) menuTabBtn.click();
+      } else {
+        renderActiveTab();
+      }
+    });
+  });
+}
+
+function setupGlobalSearch() {
+  const searchInput = document.getElementById('global-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      const explorerSearch = document.getElementById('input-explorer-search');
+      if (explorerSearch) {
+        explorerSearch.value = q;
+        state.explorer.search = q;
+        state.explorer.page = 1;
+      }
+      if (state.activeTab === 'explorer') {
+        renderExplorer();
+      }
+    });
+  }
+}
+
 // Data Fetching
 async function loadData() {
   const badgeSync = document.getElementById('badge-sync');
@@ -99,7 +160,7 @@ async function loadData() {
     );
 
     const totalRows = Object.values(state.meta.rows || {}).reduce((a, b) => a + b, 0);
-    document.getElementById('badge-records-count').textContent = `Total Data: ${fmtNum(totalRows)} baris (${state.meta.total_size_kb || 0} KB)`;
+    document.getElementById('badge-records-count').textContent = `Total: ${fmtNum(totalRows)} baris (${state.meta.total_size_kb || 0} KB)`;
 
     populateFilters();
     renderActiveTab();
@@ -142,10 +203,10 @@ function populateFilters() {
 function renderActiveTab() {
   switch (state.activeTab) {
     case 'pnl':
-      renderExecutivePnL();
+      renderPnlExecutive();
       break;
     case 'cost':
-      renderCostControl();
+      renderCostVariance();
       break;
     case 'menu':
       renderMenuEngineering();
@@ -163,143 +224,137 @@ function renderActiveTab() {
 }
 
 // TAB 1: EXECUTIVE P&L
-function renderExecutivePnL() {
+function renderPnlExecutive() {
   const pnlMonthly = state.data.pnl_monthly || [];
   let filtered = pnlMonthly;
   if (state.selectedOutlet !== 'ALL') {
     filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
   }
 
-  // Monthly aggregated totals
+  // Group by month
   const monthsMap = {};
   filtered.forEach((r) => {
     const m = r.report_month;
     if (!monthsMap[m]) {
       monthsMap[m] = {
-        month: m,
         net_sales: 0,
         gross_sales: 0,
         discounts: 0,
         actual_cost_of_sales: 0,
-        cogs_standard: 0,
+        theoretical_cost_of_sales: 0,
         waste_cost: 0,
-        channel_commission: 0,
-        payment_fees: 0,
         labor_cost: 0,
         other_opex: 0,
-        gross_profit: 0,
+        channel_commission: 0,
+        payment_fees: 0,
         outlet_ebitda: 0,
         order_count: 0,
       };
     }
-    monthsMap[m].net_sales += Number(r.net_sales) || 0;
-    monthsMap[m].gross_sales += Number(r.gross_sales) || 0;
-    monthsMap[m].discounts += Number(r.discounts) || 0;
-    monthsMap[m].actual_cost_of_sales += Number(r.actual_cost_of_sales) || 0;
-    monthsMap[m].cogs_standard += Number(r.cogs_standard) || 0;
-    monthsMap[m].waste_cost += Number(r.waste_cost) || 0;
-    monthsMap[m].channel_commission += Number(r.channel_commission) || 0;
-    monthsMap[m].payment_fees += Number(r.payment_fees) || 0;
-    monthsMap[m].labor_cost += Number(r.labor_cost) || 0;
-    monthsMap[m].other_opex += Number(r.other_opex) || 0;
-    monthsMap[m].gross_profit += Number(r.gross_profit) || 0;
-    monthsMap[m].outlet_ebitda += Number(r.outlet_ebitda) || 0;
-    monthsMap[m].order_count += Number(r.order_count) || 0;
+    const acc = monthsMap[m];
+    acc.net_sales += Number(r.net_sales) || 0;
+    acc.gross_sales += Number(r.gross_sales) || 0;
+    acc.discounts += Number(r.discounts) || 0;
+    acc.actual_cost_of_sales += Number(r.actual_cost_of_sales) || 0;
+    acc.theoretical_cost_of_sales += Number(r.theoretical_cost_of_sales) || 0;
+    acc.waste_cost += Number(r.waste_cost) || 0;
+    acc.labor_cost += Number(r.labor_cost) || 0;
+    acc.other_opex += Number(r.other_opex) || 0;
+    acc.channel_commission += Number(r.channel_commission) || 0;
+    acc.payment_fees += Number(r.payment_fees) || 0;
+    acc.outlet_ebitda += Number(r.outlet_ebitda) || 0;
+    acc.order_count += Number(r.order_count) || 0;
   });
 
   const sortedMonths = Object.keys(monthsMap).sort();
+  if (sortedMonths.length === 0) return;
+
   const latestMonthKey = state.selectedMonth !== 'ALL' ? state.selectedMonth : sortedMonths[sortedMonths.length - 1];
-  const prevMonthKey = sortedMonths[sortedMonths.indexOf(latestMonthKey) - 1];
-
   const cur = monthsMap[latestMonthKey] || {};
-  const prev = monthsMap[prevMonthKey] || {};
+  const prevMonthKey = sortedMonths[sortedMonths.indexOf(latestMonthKey) - 1];
+  const prev = monthsMap[prevMonthKey] || cur;
 
-  // KPI Calculations
-  const curFoodCostPct = (cur.actual_cost_of_sales / cur.net_sales) * 100 || 0;
-  const prevFoodCostPct = (prev.actual_cost_of_sales / prev.net_sales) * 100 || 0;
-
-  const curPrimeCostPct = ((cur.actual_cost_of_sales + cur.labor_cost) / cur.net_sales) * 100 || 0;
-  const prevPrimeCostPct = ((prev.actual_cost_of_sales + prev.labor_cost) / prev.net_sales) * 100 || 0;
-
-  const curWastePct = (cur.waste_cost / cur.net_sales) * 100 || 0;
-  const prevWastePct = (prev.waste_cost / prev.net_sales) * 100 || 0;
-
-  const curEbitdaPct = (cur.outlet_ebitda / cur.net_sales) * 100 || 0;
-  const prevEbitdaPct = (prev.outlet_ebitda / prev.net_sales) * 100 || 0;
-
+  // Render KPI Cards (GoMeal Balance & Performance Style)
+  const curFoodCostPct = cur.net_sales ? (cur.actual_cost_of_sales / cur.net_sales) * 100 : 0;
+  const prevFoodCostPct = prev.net_sales ? (prev.actual_cost_of_sales / prev.net_sales) * 100 : 0;
+  const curPrimeCostPct = cur.net_sales ? ((cur.actual_cost_of_sales + cur.labor_cost) / cur.net_sales) * 100 : 0;
+  const prevPrimeCostPct = prev.net_sales ? ((prev.actual_cost_of_sales + prev.labor_cost) / prev.net_sales) * 100 : 0;
+  const curEbitdaPct = cur.net_sales ? (cur.outlet_ebitda / cur.net_sales) * 100 : 0;
+  const prevEbitdaPct = prev.net_sales ? (prev.outlet_ebitda / prev.net_sales) * 100 : 0;
+  const curWastePct = cur.net_sales ? (cur.waste_cost / cur.net_sales) * 100 : 0;
+  const prevWastePct = prev.net_sales ? (prev.waste_cost / prev.net_sales) * 100 : 0;
   const curAov = cur.order_count ? cur.net_sales / cur.order_count : 0;
   const prevAov = prev.order_count ? prev.net_sales / prev.order_count : 0;
 
-  // Render Cards
   const cardsHtml = `
-    <div class="kpi-card highlight-cyan">
+    <div class="kpi-card">
       <div class="kpi-header">
-        <span class="kpi-title">Net Sales</span>
-        <span class="badge-tag badge-plowhorse">${latestMonthKey}</span>
+        <span class="kpi-title">Net Sales Bersih</span>
+        <span class="badge-tag badge-star">💰 ${latestMonthKey}</span>
       </div>
       <div class="kpi-value">${fmtRp(cur.net_sales)}</div>
       <div class="kpi-delta ${cur.net_sales >= prev.net_sales ? 'good' : 'bad'}">
-        ${cur.net_sales >= prev.net_sales ? '▲' : '▼'} ${fmtRp(Math.abs(cur.net_sales - prev.net_sales))} vs MoM
+        ${cur.net_sales >= prev.net_sales ? '▲ +' : '▼ -'}${fmtRp(Math.abs(cur.net_sales - prev.net_sales))} vs MoM
       </div>
       <div class="kpi-subtext">Gross: ${fmtRp(cur.gross_sales)} (Diskon ${fmtRp(cur.discounts)})</div>
     </div>
 
-    <div class="kpi-card highlight-rose">
+    <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Actual Food Cost %</span>
         <span class="badge-tag ${curFoodCostPct <= 32 ? 'badge-status-ok' : 'badge-status-critical'}">Target ≤ 32%</span>
       </div>
       <div class="kpi-value">${fmtPct(curFoodCostPct)}</div>
       <div class="kpi-delta ${curFoodCostPct <= prevFoodCostPct ? 'good' : 'bad'}">
-        ${curFoodCostPct <= prevFoodCostPct ? '▼' : '▲'} ${Math.abs(curFoodCostPct - prevFoodCostPct).toFixed(1)} pp vs MoM
+        ${curFoodCostPct <= prevFoodCostPct ? '▼ -' : '▲ +'}${Math.abs(curFoodCostPct - prevFoodCostPct).toFixed(1)} pp vs MoM
       </div>
       <div class="kpi-subtext">HPP Aktual: ${fmtRp(cur.actual_cost_of_sales)}</div>
     </div>
 
-    <div class="kpi-card highlight-amber">
+    <div class="kpi-card">
       <div class="kpi-header">
-        <span class="kpi-title">Prime Cost % (HPP + Labor)</span>
+        <span class="kpi-title">Prime Cost % (HPP + Gaji)</span>
         <span class="badge-tag ${curPrimeCostPct <= 60 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 60%</span>
       </div>
       <div class="kpi-value">${fmtPct(curPrimeCostPct)}</div>
       <div class="kpi-delta ${curPrimeCostPct <= prevPrimeCostPct ? 'good' : 'bad'}">
-        ${curPrimeCostPct <= prevPrimeCostPct ? '▼' : '▲'} ${Math.abs(curPrimeCostPct - prevPrimeCostPct).toFixed(1)} pp vs MoM
+        ${curPrimeCostPct <= prevPrimeCostPct ? '▼ -' : '▲ +'}${Math.abs(curPrimeCostPct - prevPrimeCostPct).toFixed(1)} pp vs MoM
       </div>
-      <div class="kpi-subtext">Labor Opex: ${fmtRp(cur.labor_cost)}</div>
+      <div class="kpi-subtext">Biaya Staf: ${fmtRp(cur.labor_cost)}</div>
     </div>
 
-    <div class="kpi-card highlight-rose">
+    <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Waste to Sales %</span>
         <span class="badge-tag ${curWastePct <= 2 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 2%</span>
       </div>
       <div class="kpi-value">${fmtPct(curWastePct)}</div>
       <div class="kpi-delta ${curWastePct <= prevWastePct ? 'good' : 'bad'}">
-        ${curWastePct <= prevWastePct ? '▼' : '▲'} ${Math.abs(curWastePct - prevWastePct).toFixed(1)} pp vs MoM
+        ${curWastePct <= prevWastePct ? '▼ -' : '▲ +'}${Math.abs(curWastePct - prevWastePct).toFixed(1)} pp vs MoM
       </div>
       <div class="kpi-subtext">Biaya Limbah: ${fmtRp(cur.waste_cost)}</div>
     </div>
 
-    <div class="kpi-card highlight-emerald">
+    <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Outlet EBITDA Margin</span>
         <span class="badge-tag badge-status-ok">Bottom-Line</span>
       </div>
       <div class="kpi-value">${fmtPct(curEbitdaPct)}</div>
       <div class="kpi-delta ${curEbitdaPct >= prevEbitdaPct ? 'good' : 'bad'}">
-        ${curEbitdaPct >= prevEbitdaPct ? '▲' : '▼'} ${Math.abs(curEbitdaPct - prevEbitdaPct).toFixed(1)} pp vs MoM
+        ${curEbitdaPct >= prevEbitdaPct ? '▲ +' : '▼ -'}${Math.abs(curEbitdaPct - prevEbitdaPct).toFixed(1)} pp vs MoM
       </div>
       <div class="kpi-subtext">EBITDA: ${fmtRp(cur.outlet_ebitda)}</div>
     </div>
 
-    <div class="kpi-card highlight-purple">
+    <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Avg Order Value (AOV)</span>
         <span class="badge-tag badge-puzzle">${fmtNum(cur.order_count)} Order</span>
       </div>
       <div class="kpi-value">${fmtRp(curAov)}</div>
       <div class="kpi-delta ${curAov >= prevAov ? 'good' : 'bad'}">
-        ${curAov >= prevAov ? '▲' : '▼'} ${fmtRp(Math.abs(curAov - prevAov))} vs MoM
+        ${curAov >= prevAov ? '▲ +' : '▼ -'}${fmtRp(Math.abs(curAov - prevAov))} vs MoM
       </div>
       <div class="kpi-subtext">Keranjang Belanja Bersih</div>
     </div>
@@ -333,21 +388,22 @@ function renderTrendChart(months, map) {
           type: 'bar',
           label: 'Net Sales (IDR)',
           data: netSales,
-          backgroundColor: 'rgba(56, 189, 248, 0.45)',
-          borderColor: '#38bdf8',
+          backgroundColor: '#F8B602',
+          borderColor: '#E5A700',
           borderWidth: 1,
-          borderRadius: 4,
+          borderRadius: 6,
           yAxisID: 'ySales',
         },
         {
           type: 'line',
           label: 'Food Cost %',
           data: foodCostPct,
-          borderColor: '#ef4444',
-          backgroundColor: '#ef4444',
-          borderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
+          borderColor: '#FF5B5B',
+          backgroundColor: '#FF5B5B',
+          borderWidth: 3,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#FF5B5B',
           yAxisID: 'yPct',
         },
       ],
@@ -357,7 +413,7 @@ function renderTrendChart(months, map) {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#94a3b8' } },
+        legend: { labels: { color: '#464E5F' } },
         tooltip: {
           callbacks: {
             label: (ctx) => {
@@ -368,12 +424,12 @@ function renderTrendChart(months, map) {
         },
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
+        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
         ySales: {
           type: 'linear',
           position: 'left',
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { color: '#94a3b8', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' },
+          grid: { color: '#F0F1F6' },
+          ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' },
         },
         yPct: {
           type: 'linear',
@@ -381,7 +437,7 @@ function renderTrendChart(months, map) {
           min: 20,
           max: 45,
           grid: { drawOnChartArea: false },
-          ticks: { color: '#f87171', callback: (v) => v + '%' },
+          ticks: { color: '#FF5B5B', callback: (v) => v + '%' },
         },
       },
     },
@@ -417,9 +473,9 @@ function renderWaterfallChart(cur) {
   ];
 
   const colors = values.map((v, i) => {
-    if (i === 0 || i === 2) return 'rgba(56, 189, 248, 0.7)';
-    if (i === 8) return v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(244, 63, 94, 0.8)';
-    return 'rgba(244, 63, 94, 0.65)';
+    if (i === 0 || i === 2) return '#F8B602';
+    if (i === 8) return v >= 0 ? '#00B074' : '#FF5B5B';
+    return '#FF5B5B';
   });
 
   state.charts.waterfall = new Chart(ctx, {
@@ -431,7 +487,7 @@ function renderWaterfallChart(cur) {
           label: 'IDR',
           data: values.map((v) => Math.abs(v)),
           backgroundColor: colors,
-          borderRadius: 4,
+          borderRadius: 6,
         },
       ],
     },
@@ -450,10 +506,10 @@ function renderWaterfallChart(cur) {
         },
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', font: { size: 10 } } },
         y: {
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { color: '#94a3b8', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' },
+          grid: { color: '#F0F1F6' },
+          ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' },
         },
       },
     },
@@ -469,18 +525,22 @@ function renderKpiTable(monthKey) {
 
   const tbody = document.querySelector('#table-kpi-status tbody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada data KPI</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Data KPI belum tersedia</td></tr>';
     return;
   }
 
   tbody.innerHTML = filtered
     .map((r) => {
-      const badgeCls = r.status === 'OK' ? 'badge-status-ok' : r.status === 'WARN' ? 'badge-status-warn' : 'badge-status-critical';
+      const isPct = r.metric_code.includes('pct');
+      const val = isPct ? fmtPct(r.metric_value) : fmtRp(r.metric_value);
+      const th = isPct ? fmtPct(r.warn_threshold) : fmtRp(r.warn_threshold);
+      const symbol = r.direction === 'higher_is_worse' ? '≤' : '≥';
+      const badgeCls = `badge-status-${r.status.toLowerCase()}`;
       return `
       <tr>
         <td><strong>${r.metric_name}</strong></td>
-        <td>${fmtPct(r.metric_value)}</td>
-        <td>Warn: ${fmtPct(r.warn_threshold)} | Crit: ${fmtPct(r.critical_threshold)}</td>
+        <td>${val}</td>
+        <td>${symbol} ${th}</td>
         <td><span class="badge-tag ${badgeCls}">${r.status}</span></td>
       </tr>
     `;
@@ -489,18 +549,17 @@ function renderKpiTable(monthKey) {
 }
 
 // TAB 2: COST CONTROL & VARIANCE
-function renderCostControl() {
-  const variances = state.data.inventory_variance || [];
+function renderCostVariance() {
+  const varData = state.data.inventory_variance || [];
   const wasteData = state.data.waste || [];
   const pnlMonthly = state.data.pnl_monthly || [];
 
-  // 1. Top 10 Variance by ingredient
+  // 1. Top Unexplained Variance
   const ingMap = {};
-  variances.forEach((r) => {
+  varData.forEach((r) => {
     if (state.selectedOutlet !== 'ALL' && r.outlet_id !== state.selectedOutlet) return;
-    const ing = r.ingredient_id;
-    if (!ingMap[ing]) ingMap[ing] = 0;
-    ingMap[ing] += Number(r.unexplained_variance_value) || 0;
+    const key = r.ingredient_name || r.ingredient_id;
+    ingMap[key] = (ingMap[key] || 0) + (Number(r.unexplained_variance_cost) || 0);
   });
 
   const sortedIngs = Object.entries(ingMap)
@@ -518,10 +577,10 @@ function renderCostControl() {
         {
           label: 'Unexplained Shrinkage (IDR)',
           data: sortedIngs.map((i) => i[1]),
-          backgroundColor: 'rgba(239, 68, 68, 0.65)',
-          borderColor: '#ef4444',
+          backgroundColor: '#FF5B5B',
+          borderColor: '#E64949',
           borderWidth: 1,
-          borderRadius: 4,
+          borderRadius: 6,
         },
       ],
     },
@@ -534,8 +593,8 @@ function renderCostControl() {
         tooltip: { callbacks: { label: (ctx) => fmtRp(ctx.raw) } },
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', callback: (v) => 'Rp ' + (v / 1e3).toFixed(0) + 'k' } },
-        y: { ticks: { color: '#94a3b8' } },
+        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e3).toFixed(0) + 'k' } },
+        y: { ticks: { color: '#464E5F' } },
       },
     },
   });
@@ -558,15 +617,9 @@ function renderCostControl() {
       datasets: [
         {
           data: Object.values(wasteMap),
-          backgroundColor: [
-            'rgba(244, 63, 94, 0.75)',
-            'rgba(245, 158, 11, 0.75)',
-            'rgba(56, 189, 248, 0.75)',
-            'rgba(168, 85, 247, 0.75)',
-            'rgba(16, 185, 129, 0.75)',
-          ],
-          borderColor: '#0f172a',
-          borderWidth: 2,
+          backgroundColor: ['#F8B602', '#FF5B5B', '#2F80ED', '#8950FC', '#00B074'],
+          borderColor: '#FFFFFF',
+          borderWidth: 3,
         },
       ],
     },
@@ -574,7 +627,7 @@ function renderCostControl() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 } } },
+        legend: { position: 'right', labels: { color: '#464E5F', font: { size: 12 } } },
         tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${fmtRp(ctx.raw)}` } },
       },
     },
@@ -603,17 +656,19 @@ function renderCostControl() {
         {
           label: 'Theoretical Food Cost % (Resep + Recorded Waste)',
           data: sortedMonths.map((m) => ((monthsMap[m].theo / monthsMap[m].sales) * 100).toFixed(2)),
-          borderColor: '#38bdf8',
-          backgroundColor: '#38bdf8',
-          borderWidth: 2,
+          borderColor: '#F8B602',
+          backgroundColor: '#F8B602',
+          borderWidth: 3,
+          pointRadius: 4,
         },
         {
           label: 'Actual Food Cost % (Termasuk Stock Opname Variance)',
           data: sortedMonths.map((m) => ((monthsMap[m].act / monthsMap[m].sales) * 100).toFixed(2)),
-          borderColor: '#ef4444',
-          backgroundColor: '#ef4444',
-          borderWidth: 2,
-          borderDash: [5, 5],
+          borderColor: '#FF5B5B',
+          backgroundColor: '#FF5B5B',
+          borderWidth: 3,
+          borderDash: [6, 6],
+          pointRadius: 4,
         },
       ],
     },
@@ -621,12 +676,12 @@ function renderCostControl() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#94a3b8' } },
+        legend: { labels: { color: '#464E5F' } },
         tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%` } },
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
-        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', callback: (v) => v + '%' } },
+        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
+        y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => v + '%' } },
       },
     },
   });
@@ -639,7 +694,7 @@ function renderMenuEngineering() {
   if (state.selectedOutlet !== 'ALL') {
     filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
   }
-  if (state.selectedCategory !== 'ALL') {
+  if (state.selectedCategory !== 'ALL' && state.selectedCategory !== 'Online' && state.selectedCategory !== 'Snacks') {
     filtered = filtered.filter((r) => r.category_name === state.selectedCategory);
   }
 
@@ -650,12 +705,12 @@ function renderMenuEngineering() {
   const ctxMenu = document.getElementById('chart-menu-engineering').getContext('2d');
   if (state.charts.menu) state.charts.menu.destroy();
 
-  // Groups by class
+  // Groups by class in GoMeal palette
   const classColors = {
-    Star: { bg: 'rgba(245, 158, 11, 0.8)', border: '#f59e0b' },
-    Plowhorse: { bg: 'rgba(56, 189, 248, 0.8)', border: '#38bdf8' },
-    Puzzle: { bg: 'rgba(168, 85, 247, 0.8)', border: '#a855f7' },
-    Dog: { bg: 'rgba(244, 63, 94, 0.8)', border: '#f43f5e' },
+    Star: { bg: 'rgba(248, 182, 2, 0.9)', border: '#F8B602' },
+    Plowhorse: { bg: 'rgba(47, 128, 237, 0.9)', border: '#2F80ED' },
+    Puzzle: { bg: 'rgba(137, 80, 252, 0.9)', border: '#8950FC' },
+    Dog: { bg: 'rgba(255, 91, 91, 0.9)', border: '#FF5B5B' },
   };
 
   const datasets = ['Star', 'Plowhorse', 'Puzzle', 'Dog'].map((cls) => {
@@ -672,8 +727,8 @@ function renderMenuEngineering() {
       backgroundColor: classColors[cls].bg,
       borderColor: classColors[cls].border,
       borderWidth: 1,
-      pointRadius: 6,
-      pointHoverRadius: 9,
+      pointRadius: 7,
+      pointHoverRadius: 10,
     };
   });
 
@@ -684,7 +739,7 @@ function renderMenuEngineering() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#94a3b8' } },
+        legend: { labels: { color: '#464E5F' } },
         tooltip: {
           callbacks: {
             label: (ctx) => {
@@ -696,14 +751,14 @@ function renderMenuEngineering() {
       },
       scales: {
         x: {
-          title: { display: true, text: 'Popularitas (Menu Mix %)', color: '#94a3b8' },
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { color: '#94a3b8', callback: (v) => v + '%' },
+          title: { display: true, text: 'Popularitas (Menu Mix %)', color: '#7E8299' },
+          grid: { color: '#F0F1F6' },
+          ticks: { color: '#7E8299', callback: (v) => v + '%' },
         },
         y: {
-          title: { display: true, text: 'Rata-rata Margin Kontribusi (IDR)', color: '#94a3b8' },
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { color: '#94a3b8', callback: (v) => 'Rp ' + (v / 1e3).toFixed(0) + 'k' },
+          title: { display: true, text: 'Rata-rata Margin Kontribusi (IDR)', color: '#7E8299' },
+          grid: { color: '#F0F1F6' },
+          ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e3).toFixed(0) + 'k' },
         },
       },
     },
@@ -711,9 +766,9 @@ function renderMenuEngineering() {
 
   // Table
   const strategyRec = {
-    Star: 'Pertahankan kualitas & spesifikasi resep secara ketat; menu flagship utama.',
-    Plowhorse: 'Tinjau kenaikan harga bertahap atau kurangi porsi bahan mahal (re-engineer).',
-    Puzzle: 'Tingkatkan visibilitas di aplikasi delivery, bundling paket promo barista pick.',
+    Star: 'Pertahankan kualitas & resep standar; ini menu andalan profit gerai.',
+    Plowhorse: 'Tinjau kenaikan harga bertahap atau kurangi takaran porsi bahan mahal.',
+    Puzzle: 'Tingkatkan visibilitas di aplikasi delivery, buat bundling promo barista pick.',
     Dog: 'Evaluasi penghapusan menu (delist) untuk efisiensi ruang simpan bahan baku.',
   };
 
@@ -730,7 +785,7 @@ function renderMenuEngineering() {
         <td>${fmtNum(r.qty_sold)}</td>
         <td>${(Number(r.menu_mix_pct) * 100).toFixed(1)}%</td>
         <td>${fmtRp(r.avg_contribution_margin)}</td>
-        <td style="color: var(--text-secondary); font-size: 12px;">${strategyRec[r.menu_class]}</td>
+        <td style="color: var(--text-muted); font-size: 12px;">${strategyRec[r.menu_class]}</td>
       </tr>
     `;
     })
@@ -765,21 +820,21 @@ function renderChannels() {
     data: {
       labels: channels,
       datasets: [
-        { label: 'Net Sales', data: channels.map((c) => chMap[c].sales), backgroundColor: 'rgba(56, 189, 248, 0.7)' },
-        { label: 'Komisi Platform', data: channels.map((c) => chMap[c].comm), backgroundColor: 'rgba(239, 68, 68, 0.7)' },
-        { label: 'Margin Kontribusi', data: channels.map((c) => chMap[c].contrib), backgroundColor: 'rgba(16, 185, 129, 0.7)' },
+        { label: 'Net Sales', data: channels.map((c) => chMap[c].sales), backgroundColor: '#F8B602', borderRadius: 6 },
+        { label: 'Komisi Platform', data: channels.map((c) => chMap[c].comm), backgroundColor: '#FF5B5B', borderRadius: 6 },
+        { label: 'Margin Kontribusi', data: channels.map((c) => chMap[c].contrib), backgroundColor: '#00B074', borderRadius: 6 },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#94a3b8' } },
+        legend: { labels: { color: '#464E5F' } },
         tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtRp(ctx.raw)}` } },
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
-        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' } },
+        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
+        y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' } },
       },
     },
   });
@@ -796,8 +851,8 @@ function renderChannels() {
         {
           label: 'AOV (IDR)',
           data: channels.map((c) => (chMap[c].orders ? chMap[c].sales / chMap[c].orders : 0)),
-          backgroundColor: 'rgba(168, 85, 247, 0.7)',
-          borderRadius: 4,
+          backgroundColor: '#8950FC',
+          borderRadius: 6,
         },
       ],
     },
@@ -809,8 +864,8 @@ function renderChannels() {
         tooltip: { callbacks: { label: (ctx) => `AOV: ${fmtRp(ctx.raw)}` } },
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
-        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', callback: (v) => fmtRp(v) } },
+        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
+        y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => fmtRp(v) } },
       },
     },
   });
@@ -847,8 +902,25 @@ function renderHeatmap(data) {
     for (let h = 0; h < 24; h++) {
       const count = matrix[`${dayNum}_${h}`] || 0;
       const intensity = maxOrders > 0 ? count / maxOrders : 0;
-      const bg = intensity === 0 ? 'rgba(255, 255, 255, 0.03)' : `rgba(56, 189, 248, ${0.15 + intensity * 0.8})`;
-      const color = intensity > 0.4 ? '#fff' : 'rgba(255, 255, 255, 0.5)';
+      let bg = '#F8F9FD';
+      let color = '#B5B5C3';
+
+      if (intensity > 0) {
+        if (intensity < 0.25) {
+          bg = '#FFF9E6';
+          color = '#8C6000';
+        } else if (intensity < 0.5) {
+          bg = '#FFE8A3';
+          color = '#8C6000';
+        } else if (intensity < 0.75) {
+          bg = '#F8B602';
+          color = '#FFFFFF';
+        } else {
+          bg = '#FA8B0C';
+          color = '#FFFFFF';
+        }
+      }
+
       html += `<div class="heatmap-cell" style="background:${bg}; color:${color};" title="${dayName} jam ${h}:00 - ${fmtNum(count)} order">${count > 0 ? fmtNum(count) : '-'}</div>`;
     }
   });
@@ -909,15 +981,15 @@ function updateSimulator() {
   const baseEbitdaPct = baseSales ? (baseEbitda / baseSales) * 100 : 0;
 
   document.getElementById('sim-kpi-container').innerHTML = `
-    <div class="kpi-card highlight-cyan">
+    <div class="kpi-card">
       <div class="kpi-header"><span class="kpi-title">Simulasi Net Sales</span></div>
       <div class="kpi-value">${fmtRp(simSales)}</div>
       <div class="kpi-delta ${simSales >= baseSales ? 'good' : 'bad'}">
-        ${simSales >= baseSales ? '▲ +' : '▼ '}${fmtRp(simSales - baseSales)}
+        ${simSales >= baseSales ? '▲ +' : '▼ -'}${fmtRp(Math.abs(simSales - baseSales))}
       </div>
     </div>
 
-    <div class="kpi-card highlight-rose">
+    <div class="kpi-card">
       <div class="kpi-header"><span class="kpi-title">Simulasi Komisi Platform</span></div>
       <div class="kpi-value">${fmtRp(simComm)}</div>
       <div class="kpi-delta ${simComm <= baseComm ? 'good' : 'bad'}">
@@ -925,15 +997,15 @@ function updateSimulator() {
       </div>
     </div>
 
-    <div class="kpi-card highlight-emerald">
+    <div class="kpi-card">
       <div class="kpi-header"><span class="kpi-title">Simulasi Outlet EBITDA</span></div>
       <div class="kpi-value">${fmtRp(simEbitda)}</div>
       <div class="kpi-delta ${deltaEbitda >= 0 ? 'good' : 'bad'}">
-        ${deltaEbitda >= 0 ? '▲ +' : '▼ '}${fmtRp(deltaEbitda)} vs Baseline
+        ${deltaEbitda >= 0 ? '▲ +' : '▼ -'}${fmtRp(Math.abs(deltaEbitda))} vs Baseline
       </div>
     </div>
 
-    <div class="kpi-card highlight-purple">
+    <div class="kpi-card">
       <div class="kpi-header"><span class="kpi-title">Simulasi EBITDA Margin</span></div>
       <div class="kpi-value">${fmtPct(simEbitdaPct)}</div>
       <div class="kpi-delta ${simEbitdaPct >= baseEbitdaPct ? 'good' : 'bad'}">
@@ -951,20 +1023,20 @@ function updateSimulator() {
     data: {
       labels: ['Net Sales', 'Cost of Sales (COGS + Waste)', 'Komisi Kanal', 'Outlet EBITDA'],
       datasets: [
-        { label: 'Baseline Saat Ini', data: [baseSales, baseCogs + baseWaste, baseComm, baseEbitda], backgroundColor: 'rgba(148, 163, 184, 0.6)' },
-        { label: 'Skenario Simulasi Baru', data: [simSales, simCostOfSales, simComm, simEbitda], backgroundColor: 'rgba(56, 189, 248, 0.8)' },
+        { label: 'Baseline Saat Ini', data: [baseSales, baseCogs + baseWaste, baseComm, baseEbitda], backgroundColor: '#E2E8F0', borderRadius: 6 },
+        { label: 'Skenario Simulasi Baru', data: [simSales, simCostOfSales, simComm, simEbitda], backgroundColor: '#F8B602', borderRadius: 6 },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#94a3b8' } },
+        legend: { labels: { color: '#464E5F' } },
         tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtRp(ctx.raw)}` } },
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
-        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' } },
+        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
+        y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' } },
       },
     },
   });

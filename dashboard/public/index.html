@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F&amp;B Analytics &amp; Data Platform | Enterprise Multi-Outlet Intelligence</title>
-  <meta name="description" content="Production-grade F&B multi-outlet data platform portfolio: Neon Postgres, BigQuery, dbt Core, standard costing engine, Kasavana-Smith menu engineering, and cost control.">
+  <title>GoMeal. | Online Food Delivery &amp; Multi-Outlet Admin Dashboard</title>
+  <meta name="description" content="GoMeal Production F&B Multi-Outlet Analytics & Data Platform: Neon Postgres, BigQuery, dbt Core, standard costing engine, Kasavana-Smith menu engineering, and cost control.">
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,18 +22,25 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-top">
-        <div>
-          <h1 class="brand-title">
-            F&amp;B Multi-Outlet Analytics
-            <span class="brand-badge">PROD ARCHITECTURE</span>
-          </h1>
-          <p class="brand-subtitle">
-            Enterprise Standard Costing Engine · Kasavana-Smith Menu Engineering · Shrinkage &amp; Waste Leakage Prevention
-          </p>
+        <div class="brand-wrapper">
+          <div>
+            <h1 class="brand-title">
+              GoMeal<span class="brand-dot">.</span>
+              <span class="brand-badge">PROD PLATFORM</span>
+            </h1>
+            <p class="brand-subtitle">
+              Online Food Delivery &amp; Multi-Outlet Intelligence Dashboard
+            </p>
+          </div>
         </div>
-        <div class="header-badges">
+
+        <div class="header-actions">
+          <div class="search-bar-header">
+            <span>🔍</span>
+            <input type="text" id="global-search-input" placeholder="Cari outlet, menu, atau metrik...">
+          </div>
           <span class="pill-badge active-status">
-            <span class="dot-indicator"></span> 100% Free-Tier (Rp 0 / Zero Cost)
+            <span class="dot-indicator"></span> 100% Free-Tier (Rp 0)
           </span>
           <span class="pill-badge" id="badge-sync">
             🕒 Sync: Memuat data...
@@ -42,11 +49,55 @@
             📂 GitHub Repo
           </a>
           <a href="data/meta.json" target="_blank" rel="noopener" class="pill-badge" id="btn-marts-json">
-            ⬇️ Download Marts JSON
+            ⬇️ Marts JSON
           </a>
         </div>
       </div>
     </header>
+
+    <!-- GoMeal Hero Promotional / Intelligence Banner -->
+    <div class="gomeal-hero-banner">
+      <div class="hero-banner-text">
+        <h2>Executive Cost Control &amp; Multi-Outlet Performance</h2>
+        <p>BOM Recipe Explosion · Rekonsiliasi Selisih Stock Opname · Matriks Kasavana-Smith</p>
+      </div>
+      <div class="hero-chips-container">
+        <div class="hero-chip">
+          <span class="hero-chip-label">Production SLA</span>
+          <span class="hero-chip-val">100% Green</span>
+        </div>
+        <div class="hero-chip">
+          <span class="hero-chip-label">Cloud Monthly Cost</span>
+          <span class="hero-chip-val">Rp 0 / $0.00</span>
+        </div>
+        <div class="hero-chip">
+          <span class="hero-chip-label">Architecture</span>
+          <span class="hero-chip-val">Postgres → dbt → BQ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Food Categories Row (GoMeal Style) -->
+    <div class="category-row">
+      <div class="category-pill-card active" data-cat="ALL">
+        <span class="cat-icon">🍽️</span> Semua Kategori
+      </div>
+      <div class="category-pill-card" data-cat="Beverage">
+        <span class="cat-icon">☕</span> Beverage &amp; Coffee
+      </div>
+      <div class="category-pill-card" data-cat="Food">
+        <span class="cat-icon">🍔</span> Burger &amp; Rice Meals
+      </div>
+      <div class="category-pill-card" data-cat="Bakery">
+        <span class="cat-icon">🥐</span> Bakery &amp; Pastry
+      </div>
+      <div class="category-pill-card" data-cat="Snacks">
+        <span class="cat-icon">🍟</span> Sides &amp; Appetizers
+      </div>
+      <div class="category-pill-card" data-cat="Online">
+        <span class="cat-icon">🛵</span> Online Delivery (GF/GR/SF)
+      </div>
+    </div>
 
     <!-- Global Controls -->
     <div class="controls-bar" id="controls-bar">
@@ -385,7 +436,7 @@
             <tbody><!-- JS rendered --></tbody>
           </table>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 13px; color: var(--text-secondary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 13px; color: var(--text-muted);">
           <span id="explorer-pagination-info">Menampilkan 0 dari 0 baris</span>
           <div style="display: flex; gap: 8px;">
             <button id="btn-page-prev" class="pill-badge" style="cursor: pointer;">◀️ Sebelumnya</button>

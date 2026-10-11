@@ -1,25 +1,56 @@
+/* ==========================================================================
+   GoMeal. - Modern F&B Multi-Outlet Analytics & Cost Control Dashboard
+   Color Palette & Theme inspired by GoMeal Food Delivery Admin
+   ========================================================================== */
+
 :root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: #111827;
-  --bg-card: rgba(17, 24, 39, 0.75);
-  --bg-card-hover: rgba(31, 41, 55, 0.85);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(56, 189, 248, 0.4);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-cyan: #38bdf8;
-  --accent-blue: #3b82f6;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-  --accent-purple: #8b5cf6;
-  --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* GoMeal Brand Theme Tokens */
+  --bg-app: #F8F9FD;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FFFFFF;
+  --bg-sidebar: #FFFFFF;
+  --bg-input: #F8F9FD;
+  
+  /* Primary & Accent Colors */
+  --brand-yellow: #F8B602;
+  --brand-yellow-hover: #E5A700;
+  --brand-yellow-light: #FFF9E6;
+  --brand-yellow-glow: 0 6px 20px rgba(248, 182, 2, 0.35);
+  
+  --brand-orange: #FA8B0C;
+  --brand-gradient: linear-gradient(135deg, #F8B602 0%, #FA8B0C 100%);
+  --brand-gradient-subtle: linear-gradient(135deg, #FFF9E6 0%, #FFF2D1 100%);
+
+  /* Status & Semantic Colors */
+  --color-coral: #FF5B5B;
+  --color-coral-light: #FFF0F0;
+  --color-green: #00B074;
+  --color-green-light: #E8F9F1;
+  --color-blue: #2F80ED;
+  --color-blue-light: #EEF6FF;
+  --color-purple: #8950FC;
+  --color-purple-light: #F3E8FF;
+
+  /* Text Colors */
+  --text-title: #1C1D21;
+  --text-body: #464E5F;
+  --text-muted: #8F92A1;
+  --text-light: #B5B5C3;
+
+  /* Borders & Shadows */
+  --border-light: #EFF0F6;
+  --border-focus: #F8B602;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 6px 24px rgba(149, 157, 165, 0.06), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --shadow-hover: 0 12px 32px rgba(149, 157, 165, 0.12);
+
+  /* Geometry */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -29,74 +60,108 @@
 }
 
 body {
-  font-family: var(--font-family);
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-body);
   line-height: 1.5;
   min-height: 100vh;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.06) 0px, transparent 50%);
-  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Layout */
+/* App Container */
 .app-container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px 32px 48px;
 }
 
-/* Header */
+/* ==========================================================================
+   Header & Brand
+   ========================================================================== */
 .app-header {
   margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .header-top {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 20px;
+}
+
+.brand-wrapper {
+  display: flex;
+  align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
 }
 
 .brand-title {
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #38bdf8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.03em;
+  color: var(--text-title);
   display: flex;
   align-items: center;
-  gap: 12px;
+  line-height: 1;
+}
+
+.brand-title .brand-dot {
+  color: var(--brand-yellow);
 }
 
 .brand-badge {
   font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  background: rgba(56, 189, 248, 0.15);
-  color: var(--accent-cyan);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  -webkit-text-fill-color: initial;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-yellow-light);
+  color: #B47D00;
+  margin-left: 10px;
+  vertical-align: middle;
 }
 
 .brand-subtitle {
-  font-size: 14px;
-  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 
-.header-badges {
+.header-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.search-bar-header:focus-within {
+  border-color: var(--brand-yellow);
+  box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
+}
+
+.search-bar-header input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-title);
+  width: 220px;
 }
 
 .pill-badge {
@@ -104,36 +169,114 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  font-weight: 500;
-  padding: 5px 12px;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-body);
   text-decoration: none;
+  box-shadow: var(--shadow-sm);
   transition: var(--transition);
 }
 
 .pill-badge:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--brand-yellow);
+  color: var(--text-title);
+  transform: translateY(-1px);
 }
 
 .pill-badge.active-status {
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #34d399;
+  background: var(--color-green-light);
+  border-color: rgba(0, 176, 116, 0.25);
+  color: var(--color-green);
 }
 
 .dot-indicator {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background-color: var(--accent-emerald);
-  box-shadow: 0 0 8px var(--accent-emerald);
+  background-color: var(--color-green);
+  box-shadow: 0 0 8px rgba(0, 176, 116, 0.5);
 }
 
-/* Controls Bar */
+/* ==========================================================================
+   Hero Greeting & Promotional Banner (GoMeal Signature)
+   ========================================================================== */
+.gomeal-hero-banner {
+  background: var(--brand-gradient);
+  border-radius: var(--radius-lg);
+  padding: 24px 32px;
+  color: #FFFFFF;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--brand-yellow-glow);
+}
+
+.gomeal-hero-banner::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.hero-banner-text h2 {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.hero-banner-text p {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.95;
+  max-width: 650px;
+}
+
+.hero-chips-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.hero-chip {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  text-align: center;
+}
+
+.hero-chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  display: block;
+}
+
+.hero-chip-val {
+  font-size: 16px;
+  font-weight: 800;
+  display: block;
+}
+
+/* ==========================================================================
+   Global Controls Bar
+   ========================================================================== */
 .controls-bar {
   display: flex;
   justify-content: space-between;
@@ -141,10 +284,10 @@ body {
   flex-wrap: wrap;
   gap: 16px;
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  padding: 12px 18px;
+  padding: 14px 20px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-card);
   margin-bottom: 24px;
 }
 
@@ -157,35 +300,43 @@ body {
 
 .filter-label {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--text-title);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .filter-select {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  color: var(--text-title);
   font-size: 13px;
-  font-weight: 500;
-  padding: 6px 12px;
+  font-weight: 600;
+  padding: 8px 16px;
   outline: none;
   cursor: pointer;
   transition: var(--transition);
 }
 
 .filter-select:focus {
-  border-color: var(--accent-cyan);
+  border-color: var(--brand-yellow);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
 }
 
-/* Navigation Tabs */
+/* ==========================================================================
+   Navigation Tabs (GoMeal Rounded Pill Style)
+   ========================================================================== */
 .nav-tabs {
   display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--border-color);
+  gap: 10px;
+  background: var(--bg-card);
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 24px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -198,128 +349,168 @@ body {
 .tab-btn {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 10px 18px;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  position: relative;
   transition: var(--transition);
   white-space: nowrap;
 }
 
 .tab-btn:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-title);
+  background: var(--brand-yellow-light);
 }
 
 .tab-btn.active {
-  color: var(--accent-cyan);
+  background: var(--brand-yellow);
+  color: var(--text-title);
+  box-shadow: var(--brand-yellow-glow);
 }
 
-.tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent-cyan);
-  box-shadow: 0 0 12px var(--accent-cyan);
+/* ==========================================================================
+   Category Row (GoMeal Food Category Icons)
+   ========================================================================== */
+.category-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
 }
 
-/* KPI Cards Grid */
+.category-row::-webkit-scrollbar {
+  display: none;
+}
+
+.category-pill-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-title);
+}
+
+.category-pill-card .cat-icon {
+  font-size: 20px;
+}
+
+.category-pill-card:hover, .category-pill-card.active {
+  border-color: var(--brand-yellow);
+  background: var(--brand-yellow-light);
+  color: #8C6000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(248, 182, 2, 0.2);
+}
+
+/* ==========================================================================
+   KPI Cards Grid (GoMeal "Balance & Performance" Card Aesthetic)
+   ========================================================================== */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 18px;
   margin-bottom: 24px;
 }
 
 .kpi-card {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 18px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
   transition: var(--transition);
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .kpi-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px);
-  box-shadow: var(--glass-glow);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(248, 182, 2, 0.3);
 }
-
-.kpi-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--border-color), transparent);
-}
-
-.kpi-card.highlight-emerald::before { background: var(--accent-emerald); }
-.kpi-card.highlight-cyan::before { background: var(--accent-cyan); }
-.kpi-card.highlight-rose::before { background: var(--accent-rose); }
-.kpi-card.highlight-amber::before { background: var(--accent-amber); }
-.kpi-card.highlight-purple::before { background: var(--accent-purple); }
 
 .kpi-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .kpi-title {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
 }
 
 .kpi-value {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  margin-bottom: 6px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-title);
+  margin-bottom: 8px;
 }
 
 .kpi-delta {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  width: fit-content;
 }
 
-.kpi-delta.good { color: var(--accent-emerald); }
-.kpi-delta.bad { color: var(--accent-rose); }
-.kpi-delta.neutral { color: var(--text-muted); }
+.kpi-delta.good {
+  color: var(--color-green);
+  background: var(--color-green-light);
+}
+
+.kpi-delta.bad {
+  color: var(--color-coral);
+  background: var(--color-coral-light);
+}
+
+.kpi-delta.neutral {
+  color: var(--text-muted);
+  background: var(--bg-input);
+}
 
 .kpi-subtext {
   font-size: 11px;
+  font-weight: 500;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
-/* Charts & Panels Layout */
+/* ==========================================================================
+   Panels, Cards & Charts Layout
+   ========================================================================== */
 .chart-panel-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
-  gap: 20px;
+  gap: 22px;
   margin-bottom: 24px;
 }
 
@@ -329,27 +520,33 @@ body {
 
 .panel-card {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
+  transition: var(--transition);
+}
+
+.panel-card:hover {
+  box-shadow: var(--shadow-hover);
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .panel-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-title);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -357,29 +554,32 @@ body {
 
 .panel-desc {
   font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 3px;
 }
 
 .panel-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
 .chart-wrapper {
   position: relative;
   width: 100%;
-  min-height: 320px;
+  min-height: 330px;
   flex: 1;
 }
 
-/* Tables */
+/* ==========================================================================
+   Tables & Data Explorer
+   ========================================================================== */
 .table-container {
   overflow-x: auto;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background: rgba(15, 23, 42, 0.4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: #FFFFFF;
 }
 
 .data-table {
@@ -390,77 +590,126 @@ body {
 }
 
 .data-table th {
-  background: rgba(30, 41, 59, 0.8);
-  padding: 10px 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: #F8F9FD;
+  padding: 12px 16px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-light);
   white-space: nowrap;
 }
 
 .data-table td {
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-title);
+  font-weight: 500;
   white-space: nowrap;
 }
 
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
 .data-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: #FFFDF8;
 }
 
+/* Badges for Menu Classes & Status */
 .badge-tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.badge-star { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
-.badge-plowhorse { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
-.badge-puzzle { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
-.badge-dog { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.4); }
+.badge-star {
+  background: var(--brand-yellow-light);
+  color: #B47D00;
+  border: 1px solid rgba(248, 182, 2, 0.4);
+}
 
-.badge-status-ok { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.badge-status-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.badge-status-critical { background: rgba(244, 63, 94, 0.2); color: #fb7185; font-weight: 700; }
+.badge-plowhorse {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  border: 1px solid rgba(47, 128, 237, 0.3);
+}
 
-/* Alert Box */
+.badge-puzzle {
+  background: var(--color-purple-light);
+  color: var(--color-purple);
+  border: 1px solid rgba(137, 80, 252, 0.3);
+}
+
+.badge-dog {
+  background: var(--color-coral-light);
+  color: var(--color-coral);
+  border: 1px solid rgba(255, 91, 91, 0.3);
+}
+
+.badge-status-ok {
+  background: var(--color-green-light);
+  color: var(--color-green);
+  font-weight: 700;
+}
+
+.badge-status-warn {
+  background: var(--brand-yellow-light);
+  color: #B47D00;
+  font-weight: 700;
+}
+
+.badge-status-critical {
+  background: var(--color-coral-light);
+  color: var(--color-coral);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Alert Boxes
+   ========================================================================== */
 .alert-box {
-  background: rgba(244, 63, 94, 0.1);
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  background: var(--color-coral-light);
+  border: 1px solid rgba(255, 91, 91, 0.25);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
-  margin-bottom: 20px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: flex-start;
 }
 
 .alert-box.info {
-  background: rgba(56, 189, 248, 0.08);
-  border-color: rgba(56, 189, 248, 0.25);
+  background: var(--brand-yellow-light);
+  border-color: rgba(248, 182, 2, 0.3);
 }
 
 .alert-icon {
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
 }
 
 .alert-content h4 {
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 2px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-title);
+  margin-bottom: 3px;
 }
 
 .alert-content p {
   font-size: 13px;
-  color: var(--text-secondary);
+  font-weight: 500;
+  color: var(--text-body);
 }
 
-/* Simulator Form */
+/* ==========================================================================
+   Simulator Controls
+   ========================================================================== */
 .simulator-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -469,49 +718,52 @@ body {
 }
 
 .slider-group {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  padding: 14px 18px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
 }
 
 .slider-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--text-title);
 }
 
 .slider-val {
-  color: var(--accent-cyan);
-  font-weight: 700;
+  color: var(--brand-yellow);
+  font-weight: 800;
 }
 
 input[type="range"] {
   width: 100%;
-  accent-color: var(--accent-cyan);
+  accent-color: var(--brand-yellow);
   cursor: pointer;
 }
 
-/* Heatmap Grid */
+/* ==========================================================================
+   Heatmap (Golden Warm Tone)
+   ========================================================================== */
 .heatmap-container {
   display: grid;
-  grid-template-columns: 80px repeat(24, 1fr);
-  gap: 4px;
+  grid-template-columns: 90px repeat(24, 1fr);
+  gap: 5px;
   font-size: 11px;
   text-align: center;
   overflow-x: auto;
-  padding: 12px 0;
+  padding: 14px 0;
 }
 
 .heatmap-cell {
-  height: 28px;
-  border-radius: 3px;
+  height: 32px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 700;
   transition: transform 0.15s ease;
   cursor: default;
 }
@@ -519,42 +771,58 @@ input[type="range"] {
 .heatmap-cell:hover {
   transform: scale(1.15);
   z-index: 10;
-  outline: 1px solid #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .heatmap-day-label {
   display: flex;
   align-items: center;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--text-title);
   text-align: left;
 }
 
 .heatmap-hour-label {
   font-size: 10px;
+  font-weight: 700;
   color: var(--text-muted);
-  padding-bottom: 6px;
+  padding-bottom: 8px;
 }
 
-/* Tab Sections Visibility */
+/* ==========================================================================
+   Tab Visibility & Animations
+   ========================================================================== */
 .tab-section {
   display: none;
 }
 
 .tab-section.active {
   display: block;
-  animation: fadeIn 0.25s ease-in-out;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width: 992px) {
   .app-container {
-    padding: 16px;
+    padding: 18px 20px;
+  }
+  .gomeal-hero-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
   }
   .chart-panel-row {
     grid-template-columns: 1fr;
