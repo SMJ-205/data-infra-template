@@ -1,5 +1,10 @@
--- Memastikan setiap komponen prep item dalam resep menu/modifier aktif memiliki resep prep aktif pada tanggal yang sama
-with active_prep_components as (
+-- Memastikan setiap komponen prep item dalam resep menu/modifier aktif memiliki resep prep aktif pada setiap tanggal aktifnya
+with max_data_date as (
+    select coalesce(max(order_date), current_date('{{ var("local_tz") }}')) as max_date
+    from {{ ref('fct_orders') }}
+),
+
+active_prep_components as (
     select
         r.effective_from,
         coalesce(r.effective_to, date '9999-12-31') as effective_to,
@@ -17,15 +22,25 @@ prep_recipes as (
         coalesce(effective_to, date '9999-12-31') as effective_to
     from {{ ref('stg_pos__recipes') }}
     where prep_ingredient_id is not null
+),
+
+component_days as (
+    select distinct
+        c.prep_id,
+        d.date_day
+    from active_prep_components as c
+    cross join max_data_date as m
+    inner join {{ ref('util_dates') }} as d
+        on d.date_day between c.effective_from and least(c.effective_to, m.max_date)
+    where d.date_day >= {{ var('start_date') }}
 )
 
 select
-    c.prep_id,
-    c.effective_from as component_from,
-    c.effective_to as component_to
-from active_prep_components as c
+    cd.prep_id,
+    cd.date_day
+from component_days as cd
 left join prep_recipes as p
-    on p.prep_id = c.prep_id
-   and c.effective_from < p.effective_to
-   and c.effective_to > p.effective_from
+    on p.prep_id = cd.prep_id
+   and cd.date_day >= p.effective_from
+   and cd.date_day < p.effective_to
 where p.prep_id is null

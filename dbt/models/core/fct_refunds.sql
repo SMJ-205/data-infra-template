@@ -40,8 +40,8 @@ select
     r.refunded_at_local,
     r.refund_amount                                     as refund_gross_amount,
     case
-        when r.order_item_id is not null then
-            coalesce(l.net_sales_amount, r.refund_amount * coalesce(safe_divide(o.net_sales_amount, o.total_amount), 1))
+        when r.order_item_id is not null and l.net_sales_amount is not null then
+            least(l.net_sales_amount, r.refund_amount)
         else
             r.refund_amount * coalesce(safe_divide(o.net_sales_amount, o.total_amount), 1)
     end                                                 as refund_net_amount,

@@ -333,7 +333,8 @@ async function loadData() {
     const ver = state.meta.generated_at_utc ? encodeURIComponent(state.meta.generated_at_utc) : Date.now();
     if (state.meta.generated_at_utc) {
       const date = new Date(state.meta.generated_at_utc);
-      badgeSync.textContent = `Sync: ${date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`;
+      const dataThru = state.meta.data_through ? `Data s/d ${state.meta.data_through} • ` : '';
+      badgeSync.textContent = `${dataThru}Sync: ${date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`;
     }
 
     const files = [
@@ -398,7 +399,10 @@ function populateFilters() {
     state.minAvailableDate = '2025-07-01';
     state.maxAvailableDate = '2026-10-11';
   }
-  state.lastDataDate = state.maxAvailableDate;
+  state.lastDataDate = (state.meta && state.meta.data_through) || state.maxAvailableDate;
+  if (state.meta && state.meta.data_through && state.meta.data_through < state.maxAvailableDate) {
+    state.maxAvailableDate = state.meta.data_through;
+  }
 
   // Set default preset to MTD (Bulan Terakhir)
   applyDatePreset('MTD');
@@ -1245,20 +1249,20 @@ function renderCostVariance() {
 // TAB 3: MENU ENGINEERING (Kasavana & Smith)
 function renderMenuEngineering() {
   const menuData = state.data.menu_engineering || [];
-  let filtered = menuData;
+  let outletFiltered = menuData;
   if (state.selectedOutlet !== 'ALL') {
-    filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
-  }
-  if (state.selectedCategory !== 'ALL' && CATEGORY_MAP[state.selectedCategory]) {
-    const allowed = CATEGORY_MAP[state.selectedCategory];
-    filtered = filtered.filter((r) => allowed.includes(r.category_name));
+    outletFiltered = outletFiltered.filter((r) => r.outlet_id === state.selectedOutlet);
   }
 
   // Deduplicate menu items for matching month in date range
   const targetMonth = state.dateRange.end ? state.dateRange.end.substring(0, 7) + '-01' : null;
-  const availableMonths = [...new Set(filtered.map((r) => r.report_month))].sort();
-  const rawItems = filtered.filter((r) => r.report_month === latestMonth);
-  let latestItems = rawItems;
+  const availableMonths = [...new Set(outletFiltered.map((r) => r.report_month))].sort();
+  const latestMonth = (targetMonth && availableMonths.includes(targetMonth))
+    ? targetMonth
+    : (availableMonths[availableMonths.length - 1] || '2026-05-01');
+
+  const rawItems = outletFiltered.filter((r) => r.report_month === latestMonth);
+  let evaluatedItems = rawItems;
 
   if (state.selectedOutlet === 'ALL') {
     const itemsMap = {};
@@ -1286,7 +1290,7 @@ function renderMenuEngineering() {
     const weightedAvgCm = totalQty > 0 ? totalCm / totalQty : 0;
     const popThreshold = nItems > 0 ? 0.7 / nItems : 0;
 
-    latestItems = consolidatedItems.map((i) => {
+    evaluatedItems = consolidatedItems.map((i) => {
       const avgCm = i.qty_sold > 0 ? (i.net_sales - i.cogs_standard) / i.qty_sold : 0;
       const mixPct = totalQty > 0 ? i.qty_sold / totalQty : 0;
       const isHighPop = mixPct >= popThreshold;
@@ -1303,6 +1307,13 @@ function renderMenuEngineering() {
         menu_class: menuClass,
       };
     });
+  }
+
+  // Filter display by category if selected
+  let latestItems = evaluatedItems;
+  if (state.selectedCategory !== 'ALL' && CATEGORY_MAP[state.selectedCategory]) {
+    const allowed = CATEGORY_MAP[state.selectedCategory];
+    latestItems = latestItems.filter((r) => allowed.includes(r.category_name));
   }
 
   const ctxMenu = document.getElementById('chart-menu-engineering').getContext('2d');

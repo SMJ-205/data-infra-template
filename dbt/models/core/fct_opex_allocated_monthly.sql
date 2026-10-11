@@ -87,7 +87,7 @@ direct_cost as (
         coalesce(b.outlet_id, 'Unallocated')     as outlet_id,
         o.pnl_line,
         o.amount                                 as allocated_amount,
-        coalesce(b.active_days_in_month, 0)      as active_days_in_month,
+        coalesce(b.active_days_in_month, extract(day from last_day(o.period_month))) as active_days_in_month,
         if(b.outlet_id is null, 'Unallocated', 'Direct') as allocation_type,
         o.is_opex_estimated
     from all_opex as o
@@ -97,18 +97,21 @@ direct_cost as (
 
 shared_cost as (
     select
-        b.period_month,
-        b.outlet_id,
+        coalesce(b.period_month, o.period_month) as period_month,
+        coalesce(b.outlet_id, 'Unallocated')     as outlet_id,
         o.pnl_line,
-        o.amount * coalesce(
-            safe_divide(b.net_sales, b.total_net_sales),
-            safe_divide(cast(1 as numeric), cast(b.n_outlets as numeric))
-        ) as allocated_amount,
-        b.active_days_in_month,
-        'HQ Allocation' as allocation_type,
+        case
+            when b.outlet_id is null then o.amount
+            else o.amount * coalesce(
+                safe_divide(b.net_sales, b.total_net_sales),
+                safe_divide(cast(1 as numeric), cast(b.n_outlets as numeric))
+            )
+        end as allocated_amount,
+        coalesce(b.active_days_in_month, extract(day from last_day(o.period_month))) as active_days_in_month,
+        if(b.outlet_id is null, 'Unallocated', 'HQ Allocation') as allocation_type,
         o.is_opex_estimated
     from all_opex as o
-    inner join basis as b on b.period_month = o.period_month
+    left join basis as b on b.period_month = o.period_month
     where o.outlet_id is null
 )
 

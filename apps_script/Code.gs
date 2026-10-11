@@ -187,7 +187,11 @@ function notifyAlerts_(kpi) {
   const alerts = kpi.values.filter(r =>
     (r[col('is_complete_month')] === true && r[col('status')] !== 'OK') ||
     (r[col('is_complete_month')] === false && r[col('status')] === 'CRITICAL'));
-  if (alerts.length === 0) return;
+  const props = PropertiesService.getScriptProperties();
+  if (alerts.length === 0) {
+    props.deleteProperty('LAST_ALERT_SIG');
+    return;
+  }
 
   const sigPayload = alerts
     .map(r => [r[col('month')], r[col('outlet')], r[col('metric_code')], r[col('status')]].join(':'))
@@ -195,7 +199,6 @@ function notifyAlerts_(kpi) {
     .join('|');
   const signature = Utilities.base64Encode(
     Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sigPayload));
-  const props = PropertiesService.getScriptProperties();
   if (props.getProperty('LAST_ALERT_SIG') === signature) return;
 
   const rowsHtml = alerts.map(r =>

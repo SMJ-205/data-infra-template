@@ -28,11 +28,11 @@ INSERT INTO fnb.channel_commission_rates (channel_code, effective_from, effectiv
 ON CONFLICT DO NOTHING;
 
 INSERT INTO fnb.promotions (promo_code, promo_name, promo_type, promo_value, funded_by, start_date, end_date) VALUES
-('HEMAT10',   'Diskon Hemat 10%',            'PERCENT', 10,   'Merchant', '2025-07-01', '2026-12-31'),
-('POTONG5K',  'Potongan Rp 5.000',           'FIXED',   5000, 'Merchant', '2025-07-01', '2026-12-31'),
-('GOFOOD15',  'Promo GoFood 15%',            'PERCENT', 15,   'Platform', '2025-07-01', '2026-12-31'),
-('GRAB20',    'Promo GrabFood 20%',          'PERCENT', 20,   'Platform', '2025-07-01', '2026-12-31'),
-('SHOPEE12',  'Promo ShopeeFood 12%',        'PERCENT', 12,   'Platform', '2025-07-01', '2026-12-31')
+('HEMAT10',   'Diskon Hemat 10%',            'PERCENT', 10,   'Merchant', '2025-07-01', '2027-12-31'),
+('POTONG5K',  'Potongan Rp 5.000',           'FIXED',   5000, 'Merchant', '2025-07-01', '2027-12-31'),
+('GOFOOD15',  'Promo GoFood 15%',            'PERCENT', 15,   'Platform', '2025-07-01', '2027-12-31'),
+('GRAB20',    'Promo GrabFood 20%',          'PERCENT', 20,   'Platform', '2025-07-01', '2027-12-31'),
+('SHOPEE12',  'Promo ShopeeFood 12%',        'PERCENT', 12,   'Platform', '2025-07-01', '2027-12-31')
 ON CONFLICT DO NOTHING;
 
 -- =============================== MENU ================================

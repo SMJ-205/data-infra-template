@@ -85,6 +85,7 @@ EXPORTS = {
             round(avg_order_value, 0) as avg_order_value,
             is_opex_estimated
         from `{p}.marts.mart_pnl_daily`
+        where report_date >= date_sub(current_date('Asia/Jakarta'), interval 450 day)
         order by report_date, outlet_id
     """,
     "kpi_status": """
@@ -129,6 +130,7 @@ EXPORTS = {
             round(theoretical_sales_qty, 2) as theoretical_sales_qty,
             round(unexplained_variance_pct, 2) as unexplained_variance_pct
         from `{p}.marts.mart_inventory_variance`
+        where period_end >= date_sub(current_date('Asia/Jakarta'), interval 450 day)
         order by outlet_id, period_end
     """,
     "waste": """
@@ -144,6 +146,7 @@ EXPORTS = {
             round(outlet_daily_net_sales, 0) as outlet_daily_net_sales,
             round(waste_pct_of_sales, 2) as waste_pct_of_sales
         from `{p}.marts.mart_waste_analysis`
+        where waste_date >= date_sub(current_date('Asia/Jakarta'), interval 450 day)
         order by outlet_id, waste_date
     """,
     "channel_daily": """
@@ -202,7 +205,7 @@ EXPORTS = {
 
 def _json_default(value):
     if isinstance(value, Decimal):
-        return float(value)
+        return int(value) if value % 1 == 0 else float(value)
     if isinstance(value, (dt.date, dt.datetime)):
         return value.isoformat()
     raise TypeError(f"tipe tidak didukung: {type(value)}")
@@ -224,7 +227,19 @@ def main() -> None:
         banned = [f.name for f in result.schema if BANNED_COLUMNS.search(f.name)]
         if banned:
             raise SystemExit(f"{name}: kolom terlarang untuk dipublikasikan: {banned}")
-        rows = [dict(r.items()) for r in result]
+        raw_rows = [dict(r.items()) for r in result]
+        rows = []
+        for r in raw_rows:
+            clean_row = {}
+            for k, v in r.items():
+                if isinstance(v, Decimal):
+                    clean_row[k] = int(v) if v % 1 == 0 else float(v)
+                elif isinstance(v, float) and v.is_integer():
+                    clean_row[k] = int(v)
+                else:
+                    clean_row[k] = v
+            rows.append(clean_row)
+
         if name == "pnl_daily" and rows:
             dates = [r["report_date"] for r in rows if r.get("report_date")]
             if dates:
@@ -237,7 +252,7 @@ def main() -> None:
         if file_bytes > MAX_FILE_BYTES:
             raise SystemExit(f"{name}: melebihi batas {MAX_FILE_BYTES} byte ({file_bytes} byte); agregasi atau perkecil jendela tanggal")
         if file_bytes >= WARN_FILE_BYTES:
-            print(f"PERINGATAN: {name} mencapai {file_bytes / 1024:.1f} KB (>= 80% dari batas 2.5 MB)!")
+            print(f"::warning::{name} mencapai {file_bytes / 1024:.1f} KB (>= 80% dari batas 2.5 MB)!")
 
         (OUT / f"{name}.json").write_text(payload, encoding="utf-8")
         counts[name] = len(rows)

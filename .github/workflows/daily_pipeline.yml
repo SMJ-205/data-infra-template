@@ -104,17 +104,23 @@ jobs:
             dbt/target/run_results.json
           retention-days: 30
       - name: Siapkan artefak dokumentasi bersih
+        id: prep_docs
         if: always()
         run: |
-          mkdir -p docs_site
-          cp target/index.html target/manifest.json target/catalog.json docs_site/ 2>/dev/null || true
+          if [ -f target/index.html ]; then
+            mkdir -p docs_site
+            cp target/index.html target/manifest.json target/catalog.json docs_site/ 2>/dev/null || true
+            echo "has_docs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_docs=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-pages-artifact@v3
-        if: always()
+        if: steps.prep_docs.outputs.has_docs == 'true'
         with:
           path: dbt/docs_site
 
   deploy-docs:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.transform.result == 'success'
     needs: transform
     runs-on: ubuntu-latest
     continue-on-error: true

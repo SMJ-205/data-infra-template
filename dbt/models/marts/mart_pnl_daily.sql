@@ -19,6 +19,19 @@ outlet_days as (
                           and coalesce(o.closed_date, m.max_date)
     where d.date_day >= {{ var('start_date') }}
       and d.date_day <= m.max_date
+
+    union all
+
+    select d.date_day as report_date, 'Unallocated' as outlet_id
+    from {{ ref('util_dates') }} as d
+    cross join max_data_date as m
+    where d.date_day >= {{ var('start_date') }}
+      and d.date_day <= m.max_date
+      and exists (
+          select 1 from {{ ref('fct_opex_allocated_monthly') }}
+          where outlet_id = 'Unallocated'
+            and period_month = date_trunc(d.date_day, month)
+      )
 ),
 
 sales as (

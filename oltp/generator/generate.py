@@ -467,7 +467,11 @@ def generate_day(M, pool, day):
                 for m in ln["mods"]:
                     tgt.mods.append((oiid, m, M.mod_price[m], created, updated))
                 if not ln["void"]:
-                    net_item_paid = max(0, ln["qty"] * ln["price"] - ln["disc"] + sum(M.mod_price[m] for m in ln["mods"]))
+                    line_mods_total = sum(M.mod_price[m] for m in ln["mods"])
+                    line_gross = ln["qty"] * (ln["price"] + line_mods_total)
+                    line_net = max(0, line_gross - ln["disc"])
+                    order_disc_share = int(round(line_net * order_disc / base_amt)) if base_amt > 0 else 0
+                    net_item_paid = max(0, line_net - order_disc_share)
                     order_item_refs.append((oiid, net_item_paid))
                     if not cancelled:
                         u.sales[ln["item"]] += ln["qty"]
@@ -903,12 +907,81 @@ def cmd_purge(args):
     print(f"Purging transaksi sebelum {cutoff}...")
     with connect() as conn:
         with conn.transaction():
-            conn.execute("delete from fnb.orders where order_date < %s", (cutoff,))
-            conn.execute("delete from fnb.refunds where (refunded_at at time zone 'Asia/Jakarta')::date < %s", (cutoff,))
-            conn.execute("delete from fnb.waste_logs where (logged_at at time zone 'Asia/Jakarta')::date < %s", (cutoff,))
+            # 1. Hapus modifier item order
+            conn.execute(
+                """delete from fnb.order_item_modifiers
+                   where order_item_id in (
+                       select oi.order_item_id from fnb.order_items oi
+                       join fnb.orders o on oi.order_id = o.order_id
+                       where (o.ordered_at at time zone 'Asia/Jakarta')::date < %s
+                   )""",
+                (cutoff,),
+            )
+            # 2. Hapus refunds
+            conn.execute(
+                """delete from fnb.refunds
+                   where order_id in (
+                       select order_id from fnb.orders
+                       where (ordered_at at time zone 'Asia/Jakarta')::date < %s
+                   ) or (refunded_at at time zone 'Asia/Jakarta')::date < %s""",
+                (cutoff, cutoff),
+            )
+            # 3. Hapus payments
+            conn.execute(
+                """delete from fnb.payments
+                   where order_id in (
+                       select order_id from fnb.orders
+                       where (ordered_at at time zone 'Asia/Jakarta')::date < %s
+                   )""",
+                (cutoff,),
+            )
+            # 4. Hapus order_items
+            conn.execute(
+                """delete from fnb.order_items
+                   where order_id in (
+                       select order_id from fnb.orders
+                       where (ordered_at at time zone 'Asia/Jakarta')::date < %s
+                   )""",
+                (cutoff,),
+            )
+            # 5. Hapus orders
+            conn.execute(
+                "delete from fnb.orders where (ordered_at at time zone 'Asia/Jakarta')::date < %s",
+                (cutoff,),
+            )
+            # 6. Hapus goods receipt lines & receipts
+            conn.execute(
+                """delete from fnb.goods_receipt_lines
+                   where receipt_id in (
+                       select receipt_id from fnb.goods_receipts
+                       where (received_at at time zone 'Asia/Jakarta')::date < %s
+                   )""",
+                (cutoff,),
+            )
+            conn.execute(
+                "delete from fnb.goods_receipts where (received_at at time zone 'Asia/Jakarta')::date < %s",
+                (cutoff,),
+            )
+            # 7. Hapus stock count lines & counts
+            conn.execute(
+                """delete from fnb.stock_count_lines
+                   where stock_count_id in (
+                       select stock_count_id from fnb.stock_counts
+                       where count_date < %s
+                   )""",
+                (cutoff,),
+            )
             conn.execute("delete from fnb.stock_counts where count_date < %s", (cutoff,))
-            conn.execute("delete from fnb.goods_receipts where (received_at at time zone 'Asia/Jakarta')::date < %s", (cutoff,))
-            conn.execute("delete from fnb.operating_expenses where period_month < %s", (cutoff.replace(day=1),))
+            # 8. Hapus waste logs
+            conn.execute(
+                "delete from fnb.waste_logs where (logged_at at time zone 'Asia/Jakarta')::date < %s",
+                (cutoff,),
+            )
+            # 9. Hapus operating expenses
+            conn.execute(
+                "delete from fnb.operating_expenses where period_month < %s",
+                (cutoff.replace(day=1),),
+            )
         print("OK: Purge selesai.")
 
 
