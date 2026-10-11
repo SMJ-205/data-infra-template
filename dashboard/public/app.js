@@ -365,7 +365,9 @@ function renderPnlExecutive() {
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Net Sales Bersih</span>
-        <span class="badge-tag badge-star">${dateLabel}</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag badge-star">${dateLabel}</span>
+        </div>
       </div>
       <div class="kpi-value">${fmtRpCompact(cur.net_sales)}</div>
       <div class="kpi-delta ${cur.net_sales >= prev.net_sales ? 'good' : 'bad'}">
@@ -377,7 +379,9 @@ function renderPnlExecutive() {
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Actual Food Cost %</span>
-        <span class="badge-tag ${curFoodCostPct <= 32 ? 'badge-status-ok' : 'badge-status-critical'}">Target ≤ 32%</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag ${curFoodCostPct <= 32 ? 'badge-status-ok' : 'badge-status-critical'}">Target ≤ 32%</span>
+        </div>
       </div>
       <div class="kpi-value">${fmtPct(curFoodCostPct)}</div>
       <div class="kpi-delta ${curFoodCostPct <= prevFoodCostPct ? 'good' : 'bad'}">
@@ -389,7 +393,9 @@ function renderPnlExecutive() {
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Prime Cost % (HPP + Gaji)</span>
-        <span class="badge-tag ${curPrimeCostPct <= 60 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 60%</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag ${curPrimeCostPct <= 60 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 60%</span>
+        </div>
       </div>
       <div class="kpi-value">${fmtPct(curPrimeCostPct)}</div>
       <div class="kpi-delta ${curPrimeCostPct <= prevPrimeCostPct ? 'good' : 'bad'}">
@@ -401,7 +407,9 @@ function renderPnlExecutive() {
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Waste to Sales %</span>
-        <span class="badge-tag ${curWastePct <= 2 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 2%</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag ${curWastePct <= 2 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 2%</span>
+        </div>
       </div>
       <div class="kpi-value">${fmtPct(curWastePct)}</div>
       <div class="kpi-delta ${curWastePct <= prevWastePct ? 'good' : 'bad'}">
@@ -413,7 +421,9 @@ function renderPnlExecutive() {
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Outlet EBITDA Margin</span>
-        <span class="badge-tag badge-status-ok">Bottom-Line</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag badge-status-ok">Bottom-Line</span>
+        </div>
       </div>
       <div class="kpi-value">${fmtPct(curEbitdaPct)}</div>
       <div class="kpi-delta ${curEbitdaPct >= prevEbitdaPct ? 'good' : 'bad'}">
@@ -425,7 +435,9 @@ function renderPnlExecutive() {
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Avg Order Value (AOV)</span>
-        <span class="badge-tag badge-puzzle">${fmtNum(cur.order_count)} Order</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag badge-puzzle">${fmtNum(cur.order_count)} Order</span>
+        </div>
       </div>
       <div class="kpi-value">${fmtRpCompact(curAov)}</div>
       <div class="kpi-delta ${curAov >= prevAov ? 'good' : 'bad'}">
