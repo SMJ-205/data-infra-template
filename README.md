@@ -1,4 +1,4 @@
-# 🍽️ F&B Modern Data Platform (100% Free-Tier Architecture)
+# F&B Modern Data Platform (100% Free-Tier Architecture)
 
 > **Enterprise-Grade Multi-Outlet Food & Beverage Data Platform built with Zero Operational Cost (Rp 0 / $0.00/month).**
 > 
@@ -6,7 +6,7 @@
 
 ---
 
-## 🏛️ Architecture Overview
+## Architecture Overview
 
 Platform ini dirancang dengan prinsip **Keyless Security (WIF)**, **Strict Cost Guardrails**, dan **Idempotent Pipelines**.
 
@@ -52,7 +52,7 @@ flowchart LR
 
 ---
 
-## 💸 Zero-Cost Guarantee (100% Free-Tier Breakdown)
+## Zero-Cost Guarantee (100% Free-Tier Breakdown)
 
 Seluruh komponen arsitektur berada dalam batas gratis permanen (*free-tier*) tanpa risiko pembengkakan biaya:
 
@@ -65,11 +65,11 @@ Seluruh komponen arsitektur berada dalam batas gratis permanen (*free-tier*) tan
 | **Serving (Web)** | Vercel | 100 GB bandwidth/bln | ~5.16 MB static JSON bundle | Static-only hosting (no serverless compute) |
 | **Serving (Alerts)**| Google Sheets & Apps Script | 6 menit execution/run | Sync run ~40 detik | Read-only cached tabs (no ad-hoc BQ queries) |
 
-> 🛡️ **Kompensasi Keamanan Biaya:** BigQuery Query Quota disarankan diset via GCP Cloud Console ke **0.02 TiB/hari** (~20 GB/hari) dan seluruh query dbt/script dibatasi oleh flag `maximum_bytes_billed: 2000000000` (2 GB). Query apapun yang melebihi batas ini akan langsung di-abort otomatis oleh GCP sebelum dieksekusi.
+> **Kompensasi Keamanan Biaya:** BigQuery Query Quota disarankan diset via GCP Cloud Console ke **0.02 TiB/hari** (~20 GB/hari) dan seluruh query dbt/script dibatasi oleh flag `maximum_bytes_billed: 2000000000` (2 GB). Query apapun yang melebihi batas ini akan langsung di-abort otomatis oleh GCP sebelum dieksekusi.
 
 ---
 
-## 🧩 Fitur Analitik & Business Storytelling
+## Fitur Analitik & Business Storytelling
 
 Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FLG-01`, Kiosk Dago Bandung `KIOSK-02`, dan Cloud Kitchen Kemang `CLOUD-03`) dengan cerita bisnis nyata yang tertanam:
 
@@ -88,7 +88,7 @@ Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FL
 
 ---
 
-## 📁 Struktur Repositori
+## Struktur Repositori
 
 ```
 ├── .github/workflows/
@@ -137,7 +137,7 @@ Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FL
 
 ---
 
-## 🏷️ Kamus Tag dbt (`dbt tags`)
+## Kamus Tag dbt (`dbt tags`)
 
 Gunakan tag dbt untuk menjalankan sub-DAG secara modular dan hemat resource:
 
@@ -152,7 +152,7 @@ Gunakan tag dbt untuk menjalankan sub-DAG secara modular dan hemat resource:
 
 ---
 
-## 🔒 Keamanan & Good Practices
+## Keamanan & Good Practices
 
 - **Zero Hardcoded Secrets**: Tidak ada file service account JSON key di repositori maupun GitHub Secrets. Seluruh autentikasi GitHub Actions menggunakan Google Cloud Workload Identity Federation (WIF).
 - **Automated PII Guard**: Kolom pelanggan sensitif (`full_name`, `phone`, `email`, `address`) otomatis di-masking/hashing via macro dbt dan divalidasi oleh `check_pii_columns.py` sebelum di-publish.
@@ -160,6 +160,6 @@ Gunakan tag dbt untuk menjalankan sub-DAG secara modular dan hemat resource:
 
 ---
 
-## 📜 Lisensi
+## Lisensi
 Platform data ini dilisensikan di bawah [MIT License](LICENSE).
 Dikembangkan untuk kebutuhan portofolio arsitektur data modern end-to-end berbiaya Rp 0.
