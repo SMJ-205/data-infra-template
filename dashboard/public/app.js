@@ -46,6 +46,32 @@ const fmtRpCompact = (v) => `<span class="kpi-currency">Rp</span><span>${Math.ro
 const fmtPct = (v) => (v === null || v === undefined || isNaN(v) ? '-' : Number(v).toFixed(1) + '%');
 const fmtNum = (v) => Math.round(Number(v) || 0).toLocaleString('id-ID');
 
+const INGREDIENT_NAMES = {
+  ING_ESPR: 'Espresso Beans',
+  ING_MILK: 'Fresh Milk',
+  ING_OAT: 'Oat Milk',
+  ING_CHSE: 'Cheddar Cheese',
+  ING_PALM: 'Gula Aren Cair',
+  ING_CHOC: 'Chocolate Powder',
+  ING_MATCHA: 'Matcha Powder',
+  ING_TEA: 'Black Tea Leaves',
+  ING_SUGR: 'Gula Pasir',
+  ING_WATR: 'Air Mineral Galon',
+  ING_LEMON: 'Lemon',
+  ING_VEG: 'Sayur Mix',
+  ING_CROIS: 'Croissant (frozen)',
+  ING_BREAD: 'Roti Tawar (slice)',
+  ING_EGG: 'Telur Ayam',
+  ING_CHKN: 'Ayam Fillet',
+  ING_RICE: 'Beras',
+  ING_NOOD: 'Mie Kuning',
+  ING_CUP: 'Paper Cup & Lid',
+  ING_BOX: 'Food Box',
+  PRP_CBREW: 'Cold Brew Base',
+  PRP_CHKN_MRN: 'Marinated Chicken',
+  PRP_RICE_CKD: 'Cooked Rice',
+};
+
 function dateAddDays(dateStr, days) {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
@@ -680,8 +706,11 @@ function renderCostVariance() {
   const ingMap = {};
   varData.forEach((r) => {
     if (state.selectedOutlet !== 'ALL' && r.outlet_id !== state.selectedOutlet) return;
-    const key = r.ingredient_name || r.ingredient_id;
-    ingMap[key] = (ingMap[key] || 0) + (Number(r.unexplained_variance_cost) || 0);
+    const rawId = r.ingredient_id || 'Bahan';
+    const ingName = INGREDIENT_NAMES[rawId] || r.ingredient_name || rawId;
+    const key = `${ingName} (${rawId})`;
+    const val = Math.abs(Number(r.unexplained_variance_value) || 0);
+    ingMap[key] = (ingMap[key] || 0) + val;
   });
 
   const sortedIngs = Object.entries(ingMap)
@@ -698,7 +727,7 @@ function renderCostVariance() {
       datasets: [
         {
           label: 'Unexplained Shrinkage (IDR)',
-          data: sortedIngs.map((i) => i[1]),
+          data: sortedIngs.map((i) => Math.round(i[1])),
           backgroundColor: '#FF5B5B',
           borderColor: '#E64949',
           borderWidth: 1,
@@ -712,10 +741,20 @@ function renderCostVariance() {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => fmtRp(ctx.raw) } },
+        tooltip: { callbacks: { label: (ctx) => `Selisih Opname: ${fmtRp(ctx.raw)}` } },
       },
       scales: {
-        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e3).toFixed(0) + 'k' } },
+        x: {
+          grid: { color: '#F0F1F6' },
+          ticks: {
+            color: '#7E8299',
+            callback: (v) => {
+              if (v >= 1e6) return 'Rp\u00A0' + (v / 1e6).toFixed(1) + 'M';
+              if (v >= 1e3) return 'Rp\u00A0' + (v / 1e3).toFixed(0) + 'k';
+              return 'Rp\u00A0' + v;
+            },
+          },
+        },
         y: { ticks: { color: '#464E5F' } },
       },
     },
@@ -777,7 +816,7 @@ function renderCostVariance() {
       datasets: [
         {
           label: 'Theoretical Food Cost % (Resep + Recorded Waste)',
-          data: sortedMonths.map((m) => ((monthsMap[m].theo / monthsMap[m].sales) * 100).toFixed(2)),
+          data: sortedMonths.map((m) => (monthsMap[m].sales ? Number(((monthsMap[m].theo / monthsMap[m].sales) * 100).toFixed(2)) : 0)),
           borderColor: '#F8B602',
           backgroundColor: '#F8B602',
           borderWidth: 3,
@@ -785,7 +824,7 @@ function renderCostVariance() {
         },
         {
           label: 'Actual Food Cost % (Termasuk Stock Opname Variance)',
-          data: sortedMonths.map((m) => ((monthsMap[m].act / monthsMap[m].sales) * 100).toFixed(2)),
+          data: sortedMonths.map((m) => (monthsMap[m].sales ? Number(((monthsMap[m].act / monthsMap[m].sales) * 100).toFixed(2)) : 0)),
           borderColor: '#FF5B5B',
           backgroundColor: '#FF5B5B',
           borderWidth: 3,
@@ -799,11 +838,17 @@ function renderCostVariance() {
       maintainAspectRatio: false,
       plugins: {
         legend: { labels: { color: '#464E5F' } },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%` } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(2)}%` } },
       },
       scales: {
         x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
-        y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => v + '%' } },
+        y: {
+          grid: { color: '#F0F1F6' },
+          ticks: {
+            color: '#7E8299',
+            callback: (v) => Number(v).toFixed(2) + '%',
+          },
+        },
       },
     },
   });
