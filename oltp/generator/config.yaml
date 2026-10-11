@@ -66,7 +66,8 @@ demand:
   hour_weights_online:  {10: 3, 11: 8, 12: 11, 13: 9, 14: 4, 15: 4, 16: 5, 17: 7, 18: 9, 19: 12, 20: 11, 21: 6, 3: 0, 4: 0}
   ramadan:
     - {start: 2026-02-18, end: 2026-03-19}
-  closed_days: [2026-03-20, 2026-03-21]  # Lebaran: semua outlet tutup
+    - {start: 2027-02-08, end: 2027-03-09}
+  closed_days: [2026-03-20, 2026-03-21, 2027-03-10, 2027-03-11]  # Lebaran: semua outlet tutup
   ramadan_hour_multiplier: {11: 0.55, 12: 0.55, 13: 0.55, 14: 0.55, 15: 0.55, 17: 1.4, 18: 1.8}
   ramadan_sahur_online: {3: 1.2, 4: 1.0}  # bobot tambahan (relatif thd total hari) hanya online
 
@@ -102,9 +103,10 @@ promos:
 
 inventory:
   count_noise_sd: 0.005
-  waste_item_prob: 0.004                 # produk jatuh / QC reject
-  prep_spoil_prob: 0.08
+  waste_item_prob: 0.025                 # produk jatuh / QC reject (target 2-3% total waste)
+  prep_spoil_prob: 0.20                  # sisa prep batch tidak terpakai
   prep_spoil_fraction: 0.5
+  bakery_rainy_expired_prob: 0.12        # expired roti/pastry musim hujan
   par_days: 4
   par_safety: 1.2
   daily_delivery_shelf_life_max: 4       # perishable <= 4 hari dikirim tiap hari

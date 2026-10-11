@@ -7,15 +7,43 @@ sources:
     schema: raw_fnb
     tables:
       - name: orders
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 26, period: hour}
+          error_after: {count: 50, period: hour}
       - name: order_items
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 26, period: hour}
+          error_after: {count: 50, period: hour}
       - name: order_item_modifiers
+        loaded_at_field: updated_at
       - name: payments
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 26, period: hour}
+          error_after: {count: 50, period: hour}
       - name: refunds
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 26, period: hour}
+          error_after: {count: 50, period: hour}
       - name: waste_logs
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 26, period: hour}
+          error_after: {count: 50, period: hour}
       - name: goods_receipts
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 50, period: hour}
+          error_after: {count: 96, period: hour}
       - name: goods_receipt_lines
+        loaded_at_field: updated_at
       - name: stock_counts
+        loaded_at_field: updated_at
       - name: stock_count_lines
+        loaded_at_field: updated_at
       - name: outlets
       - name: employees
       - name: customers

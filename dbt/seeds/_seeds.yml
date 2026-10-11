@@ -6,6 +6,7 @@ seeds:
       schema: core
       column_types:
         metric_code: string
+        outlet_type: string
         metric_name: string
         direction: string
         warn_threshold: numeric

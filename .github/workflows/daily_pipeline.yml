@@ -15,13 +15,13 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
 
 jobs:
   generate:                         # hanya untuk simulasi; hapus bila OLTP diisi aplikasi nyata
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -36,9 +36,13 @@ jobs:
           SOURCE_DATABASE_URL: ${{ secrets.SOURCE_DATABASE_URL }}
 
   ingest:
+    if: github.ref == 'refs/heads/main'
     needs: generate
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -57,9 +61,13 @@ jobs:
           DESTINATION__BIGQUERY__CREDENTIALS__PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
 
   transform:
+    if: github.ref == 'refs/heads/main'
     needs: ingest
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: dbt
@@ -95,12 +103,18 @@ jobs:
             dbt/target/manifest.json
             dbt/target/run_results.json
           retention-days: 30
+      - name: Siapkan artefak dokumentasi bersih
+        if: always()
+        run: |
+          mkdir -p docs_site
+          cp target/index.html target/manifest.json target/catalog.json docs_site/ 2>/dev/null || true
       - uses: actions/upload-pages-artifact@v3
         if: always()
         with:
-          path: dbt/target
+          path: dbt/docs_site
 
   deploy-docs:
+    if: github.ref == 'refs/heads/main'
     needs: transform
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -113,6 +127,7 @@ jobs:
       - uses: actions/deploy-pages@v4
 
   export-dashboard:                 # JSON mart -> dashboard Vercel
+    if: github.ref == 'refs/heads/main'
     needs: transform
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -138,4 +153,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add dashboard/public/data
-          git diff --cached --quiet || { git commit -m "chore(dashboard): refresh data $(date -u +%F)"; git push; }
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(dashboard): refresh data $(date -u +%F)"
+            git pull --rebase origin main || { git rebase --abort; exit 1; }
+            git push origin main || (sleep 3 && git pull --rebase origin main && git push origin main)
+          fi

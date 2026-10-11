@@ -16,16 +16,19 @@ TABLES = [
 def main():
     pg_url = os.environ.get("SOURCE_DATABASE_URL")
     project_id = os.environ.get("GCP_PROJECT_ID", "fnb-data-platform")
+    location = os.environ.get("BQ_LOCATION", "asia-southeast2")
     if not pg_url:
         sys.exit("SOURCE_DATABASE_URL is required.")
 
-    pg_conn = psycopg2.connect(pg_url)
+    # Bersihkan prefix sqlalchemy jika ada (postgresql+psycopg2:// ditolak libpq)
+    clean_pg_url = pg_url.replace("postgresql+psycopg2://", "postgresql://")
+    pg_conn = psycopg2.connect(clean_pg_url)
     pg_cur = pg_conn.cursor()
 
     bq_client = bigquery.Client(project=project_id)
 
-    print(f"{'Table':<26} | {'Neon Count':<12} | {'BQ raw_fnb':<12} | {'Match':<6}")
-    print("-" * 64)
+    print(f"{'Table':<26} | {'Neon Count':<12} | {'BQ raw_fnb':<12} | {'Match (BQ>=PG)':<14}")
+    print("-" * 72)
 
     all_matched = True
     total_pg = 0
@@ -39,12 +42,13 @@ def main():
         # BigQuery count
         try:
             query = f"SELECT count(*) as cnt FROM `{project_id}.raw_fnb.{table}`"
-            job = bq_client.query(query, location="asia-southeast2")
+            job = bq_client.query(query, location=location)
             bq_cnt = list(job.result())[0].cnt
         except Exception as e:
             bq_cnt = f"ERR: {e}"
 
-        match = (pg_cnt == bq_cnt)
+        # BQ harus >= Neon karena data lama di Neon bisa dipurge sesuai retensi sementara BQ menyimpan seluruh riwayat
+        match = isinstance(bq_cnt, int) and bq_cnt >= pg_cnt
         if not match:
             all_matched = False
 
@@ -52,9 +56,10 @@ def main():
         if isinstance(bq_cnt, int):
             total_bq += bq_cnt
 
-        print(f"{table:<26} | {pg_cnt:<12} | {str(bq_cnt):<12} | {'OK' if match else 'FAIL'}")
+        status_str = "OK" if (isinstance(bq_cnt, int) and bq_cnt == pg_cnt) else ("OK (BQ>PG)" if match else "FAIL")
+        print(f"{table:<26} | {pg_cnt:<12} | {str(bq_cnt):<12} | {status_str:<14}")
 
-    print("-" * 64)
+    print("-" * 72)
     print(f"{'TOTAL':<26} | {total_pg:<12} | {total_bq:<12} | {'ALL OK' if all_matched else 'MISMATCH'}")
 
     pg_cur.close()

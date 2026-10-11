@@ -44,8 +44,9 @@ def main() -> None:
 
     for name in TABLES:
         # Incremental berdasarkan updated_at, merge by PK dari Postgres
+        # lag=3600.0 (1 jam) memastikan commit lambat tetap terbaca
         source.resources[name].apply_hints(
-            incremental=dlt.sources.incremental("updated_at"),
+            incremental=dlt.sources.incremental("updated_at", lag=3600.0),
             write_disposition="merge",
         )
 

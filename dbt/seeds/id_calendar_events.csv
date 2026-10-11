@@ -1,12 +1,15 @@
 event_name,event_type,start_date,end_date
 Ramadan 1446H,Ramadan,2025-03-01,2025-03-30
 Idul Fitri 1446H,Holiday,2025-03-31,2025-04-01
-Ramadan 1447H,Ramadan,2026-02-18,2026-03-19
+Hari Kemerdekaan Republik Indonesia,Holiday,2025-08-17,2025-08-17
+Maulid Nabi Muhammad SAW,Holiday,2025-09-05,2025-09-05
+Hari Raya Natal,Holiday,2025-12-25,2025-12-25
 Tahun Baru 2026 Masehi,Holiday,2026-01-01,2026-01-01
 Isra Mikraj Nabi Muhammad SAW,Holiday,2026-01-16,2026-01-16
 Tahun Baru Imlek 2577 Kongzili,Holiday,2026-02-17,2026-02-17
+Ramadan 1447H,Ramadan,2026-02-18,2026-03-19
 Hari Suci Nyepi (Tahun Baru Saka 1948),Holiday,2026-03-19,2026-03-19
-Hari Raya Idulfitri 1447 Hijriah,Holiday,2026-03-21,2026-03-22
+Hari Raya Idulfitri 1447 Hijriah,Holiday,2026-03-20,2026-03-22
 Wafat Yesus Kristus,Holiday,2026-04-03,2026-04-03
 Kebangkitan Yesus Kristus (Paskah),Holiday,2026-04-05,2026-04-05
 Hari Buruh Internasional,Holiday,2026-05-01,2026-05-01
@@ -18,3 +21,19 @@ Tahun Baru Islam 1448 Hijriah,Holiday,2026-06-16,2026-06-16
 Hari Kemerdekaan Republik Indonesia,Holiday,2026-08-17,2026-08-17
 Maulid Nabi Muhammad SAW,Holiday,2026-08-25,2026-08-25
 Hari Raya Natal,Holiday,2026-12-25,2026-12-25
+Tahun Baru 2027 Masehi,Holiday,2027-01-01,2027-01-01
+Isra Mikraj Nabi Muhammad SAW,Holiday,2027-02-05,2027-02-05
+Tahun Baru Imlek 2578 Kongzili,Holiday,2027-02-06,2027-02-06
+Ramadan 1448H,Ramadan,2027-02-08,2027-03-09
+Hari Raya Idulfitri 1448 Hijriah,Holiday,2027-03-10,2027-03-11
+Hari Suci Nyepi (Tahun Baru Saka 1949),Holiday,2027-03-22,2027-03-22
+Wafat Yesus Kristus,Holiday,2027-03-26,2027-03-26
+Hari Buruh Internasional,Holiday,2027-05-01,2027-05-01
+Kenaikan Yesus Kristus,Holiday,2027-05-06,2027-05-06
+Hari Raya Iduladha 1448 Hijriah,Holiday,2027-05-17,2027-05-17
+Hari Raya Waisak 2571 BE,Holiday,2027-05-20,2027-05-20
+Hari Lahir Pancasila,Holiday,2027-06-01,2027-06-01
+Tahun Baru Islam 1449 Hijriah,Holiday,2027-06-06,2027-06-06
+Hari Kemerdekaan Republik Indonesia,Holiday,2027-08-17,2027-08-17
+Maulid Nabi Muhammad SAW,Holiday,2027-08-15,2027-08-15
+Hari Raya Natal,Holiday,2027-12-25,2027-12-25

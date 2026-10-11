@@ -85,10 +85,66 @@ function syncCategoryPills(cat) {
   });
 }
 
+function parseUtcDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
 function dateAddDays(dateStr, days) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
+  const d = parseUtcDate(dateStr);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().split('T')[0];
+}
+
+function getDaysBetween(startStr, endStr) {
+  const d1 = parseUtcDate(startStr);
+  const d2 = parseUtcDate(endStr);
+  return Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
+}
+
+function getShortMonthName(m) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return months[m - 1] || `Bln ${m}`;
+}
+
+function getComparisonDateRange(start, end, preset) {
+  const dStart = parseUtcDate(start);
+  const dEnd = parseUtcDate(end);
+  const dayCount = getDaysBetween(start, end);
+
+  const startDay = dStart.getUTCDate();
+  const endDay = dEnd.getUTCDate();
+  const startMonth = dStart.getUTCMonth();
+  const startYear = dStart.getUTCFullYear();
+  const endMonth = dEnd.getUTCMonth();
+  const endYear = dEnd.getUTCFullYear();
+
+  // If preset is MTD or range starts on day 1 and is within the same month: compare apple-to-apple with same day range last month
+  if (preset === 'MTD' || (startDay === 1 && startMonth === endMonth && startYear === endYear)) {
+    let prevYear = startYear;
+    let prevMonth = startMonth - 1;
+    if (prevMonth < 0) {
+      prevMonth = 11;
+      prevYear -= 1;
+    }
+    const daysInPrevMonth = new Date(Date.UTC(prevYear, prevMonth + 1, 0)).getUTCDate();
+    const targetEndDay = Math.min(endDay, daysInPrevMonth);
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const prevStart = `${prevYear}-${pad(prevMonth + 1)}-01`;
+    const prevEnd = `${prevYear}-${pad(prevMonth + 1)}-${pad(targetEndDay)}`;
+    const compDays = targetEndDay;
+    const compLabel = `vs 1-${targetEndDay} ${getShortMonthName(prevMonth + 1)} (${compDays} hr)`;
+    return { prevStart, prevEnd, compLabel, dayCount };
+  }
+
+  // Otherwise: compare with immediately preceding N days
+  const prevEnd = dateAddDays(start, -1);
+  const prevStart = dateAddDays(prevEnd, -(dayCount - 1));
+  const pStartParts = prevStart.split('-');
+  const pEndParts = prevEnd.split('-');
+  const compLabel = `vs ${pStartParts[1]}-${pStartParts[2]} s/d ${pEndParts[1]}-${pEndParts[2]} (${dayCount} hr)`;
+  return { prevStart, prevEnd, compLabel, dayCount };
 }
 
 function applyDatePreset(preset) {
@@ -225,17 +281,27 @@ function setupFilterListeners() {
 
 function setupCategoryPills() {
   const pills = document.querySelectorAll('.category-pill-card');
+  const activatePill = (pill) => {
+    pills.forEach((p) => p.classList.remove('active'));
+    pill.classList.add('active');
+    const cat = pill.getAttribute('data-cat');
+    state.selectedCategory = cat;
+
+    const selectMenuCat = document.getElementById('select-menu-category');
+    if (selectMenuCat) selectMenuCat.value = cat;
+
+    renderActiveTab();
+  };
+
   pills.forEach((pill) => {
-    pill.addEventListener('click', () => {
-      pills.forEach((p) => p.classList.remove('active'));
-      pill.classList.add('active');
-      const cat = pill.getAttribute('data-cat');
-      state.selectedCategory = cat;
-
-      const selectMenuCat = document.getElementById('select-menu-category');
-      if (selectMenuCat) selectMenuCat.value = cat;
-
-      renderActiveTab();
+    pill.setAttribute('role', 'button');
+    pill.setAttribute('tabindex', '0');
+    pill.addEventListener('click', () => activatePill(pill));
+    pill.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activatePill(pill);
+      }
     });
   });
 }
@@ -262,8 +328,9 @@ function setupGlobalSearch() {
 async function loadData() {
   const badgeSync = document.getElementById('badge-sync');
   try {
-    const metaRes = await fetch('data/meta.json');
+    const metaRes = await fetch(`data/meta.json?t=${Date.now()}`);
     state.meta = await metaRes.json();
+    const ver = state.meta.generated_at_utc ? encodeURIComponent(state.meta.generated_at_utc) : Date.now();
     if (state.meta.generated_at_utc) {
       const date = new Date(state.meta.generated_at_utc);
       badgeSync.textContent = `Sync: ${date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`;
@@ -283,7 +350,7 @@ async function loadData() {
 
     await Promise.all(
       files.map(async (file) => {
-        const res = await fetch(`data/${file}.json`);
+        const res = await fetch(`data/${file}.json?v=${ver}`);
         state.data[file] = await res.json();
       })
     );
@@ -365,11 +432,7 @@ function renderPnlExecutive() {
   const { start, end } = state.dateRange;
   if (!start || !end) return;
 
-  const dStart = new Date(start);
-  const dEnd = new Date(end);
-  const dayCount = Math.max(1, Math.round((dEnd - dStart) / 86400000) + 1);
-  const prevEnd = dateAddDays(start, -1);
-  const prevStart = dateAddDays(prevEnd, -(dayCount - 1));
+  const { prevStart, prevEnd, compLabel, dayCount } = getComparisonDateRange(start, end, state.datePreset);
   const dateLabel = `${start.substring(5)} s/d ${end.substring(5)} (${dayCount} hr)`;
 
   const isCategoryMode = Boolean(state.selectedCategory && state.selectedCategory !== 'ALL');
@@ -431,16 +494,16 @@ function renderPnlExecutive() {
 
     const formatDelta = (currentVal, previousVal, isPct = false, higherIsGood = true) => {
       if (!hasPrev || previousVal === undefined || previousVal === null) {
-        return `<div class="kpi-delta neutral">- n/a vs Periode Lalu -</div>`;
+        return `<div class="kpi-delta neutral">- n/a (${compLabel}) -</div>`;
       }
       const diff = currentVal - previousVal;
       if (Math.abs(diff) < 0.001) {
-        return `<div class="kpi-delta neutral">0${isPct ? '.0 pp' : ''} vs Periode Lalu</div>`;
+        return `<div class="kpi-delta neutral">0${isPct ? '.0 pp' : ''} ${compLabel}</div>`;
       }
       const isGood = higherIsGood ? diff >= 0 : diff <= 0;
       const arrow = diff >= 0 ? '▲ +' : '▼ -';
       const valStr = isPct ? `${Math.abs(diff).toFixed(1)} pp` : fmtRp(Math.abs(diff));
-      return `<div class="kpi-delta ${isGood ? 'good' : 'bad'}">${arrow}${valStr} vs Periode Lalu</div>`;
+      return `<div class="kpi-delta ${isGood ? 'good' : 'bad'}">${arrow}${valStr} ${compLabel}</div>`;
     };
 
     cardsHtml = `
@@ -591,16 +654,16 @@ function renderPnlExecutive() {
 
     const formatDelta = (currentVal, previousVal, isPct = false, higherIsGood = true) => {
       if (!hasPrev || previousVal === undefined || previousVal === null) {
-        return `<div class="kpi-delta neutral">- n/a vs Periode Lalu -</div>`;
+        return `<div class="kpi-delta neutral">- n/a (${compLabel}) -</div>`;
       }
       const diff = currentVal - previousVal;
       if (Math.abs(diff) < 0.001) {
-        return `<div class="kpi-delta neutral">0${isPct ? '.0 pp' : ''} vs Periode Lalu</div>`;
+        return `<div class="kpi-delta neutral">0${isPct ? '.0 pp' : ''} ${compLabel}</div>`;
       }
       const isGood = higherIsGood ? diff >= 0 : diff <= 0;
       const arrow = diff >= 0 ? '▲ +' : '▼ -';
       const valStr = isPct ? `${Math.abs(diff).toFixed(1)} pp` : fmtRp(Math.abs(diff));
-      return `<div class="kpi-delta ${isGood ? 'good' : 'bad'}">${arrow}${valStr} vs Periode Lalu</div>`;
+      return `<div class="kpi-delta ${isGood ? 'good' : 'bad'}">${arrow}${valStr} ${compLabel}</div>`;
     };
 
     cardsHtml = `
@@ -710,7 +773,9 @@ function renderDynamicTrendChart(dailyRows, dayCount, isCategoryMode = false, ca
       const d = r.report_date;
       if (!dayMap[d]) dayMap[d] = { net: 0, cost: 0 };
       dayMap[d].net += Number(r.net_sales) || 0;
-      dayMap[d].cost += Number(r.cogs_standard !== undefined ? r.cogs_standard : (r.cost_of_sales || r.actual_cost_of_sales)) || 0;
+      dayMap[d].cost += isCategoryMode
+        ? (Number(r.cogs_standard) || 0)
+        : (Number(r.cost_of_sales || r.actual_cost_of_sales) || 0);
     });
     const sortedDays = Object.keys(dayMap).sort();
     labels = sortedDays.map((d) => d.substring(5)); // 'MM-DD'
@@ -723,7 +788,9 @@ function renderDynamicTrendChart(dailyRows, dayCount, isCategoryMode = false, ca
       const m = r.report_month || r.report_date.substring(0, 7) + '-01';
       if (!mCountMap[m]) mCountMap[m] = { net: 0, cost: 0 };
       mCountMap[m].net += Number(r.net_sales) || 0;
-      mCountMap[m].cost += Number(r.cogs_standard !== undefined ? r.cogs_standard : (r.cost_of_sales || r.actual_cost_of_sales)) || 0;
+      mCountMap[m].cost += isCategoryMode
+        ? (Number(r.cogs_standard) || 0)
+        : (Number(r.cost_of_sales || r.actual_cost_of_sales) || 0);
     });
     const sortedMonths = Object.keys(mCountMap).sort();
     labels = sortedMonths;
@@ -732,6 +799,7 @@ function renderDynamicTrendChart(dailyRows, dayCount, isCategoryMode = false, ca
   }
 
   const seriesLabel = isCategoryMode ? `${categoryTitle} Net Sales (IDR)` : 'Net Sales (IDR)';
+  const costSeriesLabel = isCategoryMode ? 'Theoretical Food Cost % (Resep)' : 'Actual Food Cost %';
 
   state.charts.trend = new Chart(ctx, {
     type: 'bar',
@@ -750,7 +818,7 @@ function renderDynamicTrendChart(dailyRows, dayCount, isCategoryMode = false, ca
         },
         {
           type: 'line',
-          label: 'Food Cost %',
+          label: costSeriesLabel,
           data: foodCostPct,
           borderColor: '#FF5B5B',
           backgroundColor: '#FF5B5B',
@@ -772,7 +840,7 @@ function renderDynamicTrendChart(dailyRows, dayCount, isCategoryMode = false, ca
           callbacks: {
             label: (ctx) => {
               if (ctx.dataset.yAxisID === 'ySales') return `${seriesLabel}: ${fmtRp(ctx.raw)}`;
-              return `Food Cost: ${ctx.raw}%`;
+              return `${costSeriesLabel}: ${ctx.raw}%`;
             },
           },
         },
@@ -1189,10 +1257,53 @@ function renderMenuEngineering() {
   // Deduplicate menu items for matching month in date range
   const targetMonth = state.dateRange.end ? state.dateRange.end.substring(0, 7) + '-01' : null;
   const availableMonths = [...new Set(filtered.map((r) => r.report_month))].sort();
-  const latestMonth = (targetMonth && availableMonths.includes(targetMonth))
-    ? targetMonth
-    : (availableMonths[availableMonths.length - 1] || '2026-05-01');
-  const latestItems = filtered.filter((r) => r.report_month === latestMonth);
+  const rawItems = filtered.filter((r) => r.report_month === latestMonth);
+  let latestItems = rawItems;
+
+  if (state.selectedOutlet === 'ALL') {
+    const itemsMap = {};
+    rawItems.forEach((r) => {
+      const id = r.menu_item_id;
+      if (!itemsMap[id]) {
+        itemsMap[id] = {
+          menu_item_id: id,
+          menu_name: r.menu_name,
+          category_name: r.category_name,
+          qty_sold: 0,
+          net_sales: 0,
+          cogs_standard: 0,
+        };
+      }
+      itemsMap[id].qty_sold += Number(r.qty_sold) || 0;
+      itemsMap[id].net_sales += Number(r.net_sales) || 0;
+      itemsMap[id].cogs_standard += Number(r.cogs_standard) || 0;
+    });
+
+    const consolidatedItems = Object.values(itemsMap);
+    const totalQty = consolidatedItems.reduce((sum, i) => sum + i.qty_sold, 0);
+    const totalCm = consolidatedItems.reduce((sum, i) => sum + (i.net_sales - i.cogs_standard), 0);
+    const nItems = consolidatedItems.length;
+    const weightedAvgCm = totalQty > 0 ? totalCm / totalQty : 0;
+    const popThreshold = nItems > 0 ? 0.7 / nItems : 0;
+
+    latestItems = consolidatedItems.map((i) => {
+      const avgCm = i.qty_sold > 0 ? (i.net_sales - i.cogs_standard) / i.qty_sold : 0;
+      const mixPct = totalQty > 0 ? i.qty_sold / totalQty : 0;
+      const isHighPop = mixPct >= popThreshold;
+      const isHighProf = avgCm >= weightedAvgCm;
+      let menuClass = 'Dog';
+      if (isHighPop && isHighProf) menuClass = 'Star';
+      else if (isHighPop) menuClass = 'Plowhorse';
+      else if (isHighProf) menuClass = 'Puzzle';
+
+      return {
+        ...i,
+        avg_contribution_margin: avgCm,
+        menu_mix_pct: mixPct,
+        menu_class: menuClass,
+      };
+    });
+  }
 
   const ctxMenu = document.getElementById('chart-menu-engineering').getContext('2d');
   if (state.charts.menu) state.charts.menu.destroy();
@@ -1456,7 +1567,8 @@ function updateSimulator() {
       if (r.report_date < state.dateRange.start || r.report_date > state.dateRange.end) return;
     }
     baseSales += Number(r.net_sales) || 0;
-    baseCogs += Number(r.cogs_standard) || 0;
+    const cogs = (r.cogs_standard !== undefined) ? Number(r.cogs_standard) : (Number(r.cost_of_sales || 0) - Number(r.waste_cost || 0));
+    baseCogs += Math.max(0, cogs);
     baseWaste += Number(r.waste_cost) || 0;
     baseComm += Number(r.channel_commission) || 0;
     baseOpex += (Number(r.labor_cost) || 0) + (Number(r.other_opex) || 0) + (Number(r.payment_fees) || 0);
@@ -1513,34 +1625,48 @@ function updateSimulator() {
   `;
 
   // Simulator chart
-  const ctxSim = document.getElementById('chart-sim-comparison').getContext('2d');
-  if (state.charts.sim) state.charts.sim.destroy();
+  const baselineData = [baseSales, baseCogs + baseWaste, baseComm, baseEbitda];
+  const simData = [simSales, simCostOfSales, simComm, simEbitda];
 
-  state.charts.sim = new Chart(ctxSim, {
-    type: 'bar',
-    data: {
-      labels: ['Net Sales', 'Cost of Sales (COGS + Waste)', 'Komisi Kanal', 'Outlet EBITDA'],
-      datasets: [
-        { label: 'Baseline Saat Ini', data: [baseSales, baseCogs + baseWaste, baseComm, baseEbitda], backgroundColor: '#E2E8F0', borderRadius: 6 },
-        { label: 'Skenario Simulasi Baru', data: [simSales, simCostOfSales, simComm, simEbitda], backgroundColor: '#F8B602', borderRadius: 6 },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: '#464E5F' } },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtRp(ctx.raw)}` } },
+  if (state.charts.sim) {
+    state.charts.sim.data.datasets[0].data = baselineData;
+    state.charts.sim.data.datasets[1].data = simData;
+    state.charts.sim.update('none');
+  } else {
+    const ctxSim = document.getElementById('chart-sim-comparison').getContext('2d');
+    state.charts.sim = new Chart(ctxSim, {
+      type: 'bar',
+      data: {
+        labels: ['Net Sales', 'Cost of Sales (COGS + Waste)', 'Komisi Kanal', 'Outlet EBITDA'],
+        datasets: [
+          { label: 'Baseline Saat Ini', data: baselineData, backgroundColor: '#E2E8F0', borderRadius: 6 },
+          { label: 'Skenario Simulasi Baru', data: simData, backgroundColor: '#F8B602', borderRadius: 6 },
+        ],
       },
-      scales: {
-        x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
-        y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' } },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#464E5F' } },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtRp(ctx.raw)}` } },
+        },
+        scales: {
+          x: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299' } },
+          y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' } },
+        },
       },
-    },
-  });
+    });
+  }
 }
 
 // TAB 6: MARTS DATA EXPLORER
+function getFilteredExplorerRows() {
+  const rows = state.data[state.explorer.mart] || [];
+  const search = (state.explorer.search || '').trim().toLowerCase();
+  if (!search) return rows;
+  return rows.filter((r) => Object.values(r).some((v) => String(v !== null && v !== undefined ? v : '').toLowerCase().includes(search)));
+}
+
 function setupExplorer() {
   document.getElementById('select-explorer-mart').addEventListener('change', (e) => {
     state.explorer.mart = e.target.value;
@@ -1562,36 +1688,44 @@ function setupExplorer() {
   });
 
   document.getElementById('btn-page-next').addEventListener('click', () => {
-    state.explorer.page++;
-    renderExplorer();
+    const filtered = getFilteredExplorerRows();
+    const maxPage = Math.max(1, Math.ceil(filtered.length / state.explorer.pageSize));
+    if (state.explorer.page < maxPage) {
+      state.explorer.page++;
+      renderExplorer();
+    }
   });
 
   document.getElementById('btn-export-csv').addEventListener('click', exportExplorerCsv);
 }
 
 function renderExplorer() {
-  const rows = state.data[state.explorer.mart] || [];
-  const search = state.explorer.search;
-
-  let filtered = rows;
-  if (search) {
-    filtered = rows.filter((r) => Object.values(r).some((v) => String(v).toLowerCase().includes(search)));
-  }
-
+  const filtered = getFilteredExplorerRows();
   const thead = document.querySelector('#table-explorer thead');
   const tbody = document.querySelector('#table-explorer tbody');
+  const btnPrev = document.getElementById('btn-page-prev');
+  const btnNext = document.getElementById('btn-page-next');
 
   if (filtered.length === 0) {
     thead.innerHTML = '';
     tbody.innerHTML = '<tr><td style="text-align:center;">Tidak ada data ditemukan</td></tr>';
     document.getElementById('explorer-pagination-info').textContent = '0 dari 0 baris';
+    if (btnPrev) btnPrev.disabled = true;
+    if (btnNext) btnNext.disabled = true;
     return;
   }
+
+  const total = filtered.length;
+  const maxPage = Math.max(1, Math.ceil(total / state.explorer.pageSize));
+  if (state.explorer.page > maxPage) state.explorer.page = maxPage;
+  if (state.explorer.page < 1) state.explorer.page = 1;
+
+  if (btnPrev) btnPrev.disabled = state.explorer.page <= 1;
+  if (btnNext) btnNext.disabled = state.explorer.page >= maxPage;
 
   const cols = Object.keys(filtered[0]);
   thead.innerHTML = `<tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr>`;
 
-  const total = filtered.length;
   const start = (state.explorer.page - 1) * state.explorer.pageSize;
   const end = Math.min(start + state.explorer.pageSize, total);
   const pagedRows = filtered.slice(start, end);
@@ -1600,16 +1734,19 @@ function renderExplorer() {
     .map((r) => `<tr>${cols.map((c) => `<td>${r[c] !== null && r[c] !== undefined ? r[c] : '-'}</td>`).join('')}</tr>`)
     .join('');
 
-  document.getElementById('explorer-pagination-info').textContent = `Menampilkan ${start + 1}–${end} dari ${fmtNum(total)} baris`;
+  document.getElementById('explorer-pagination-info').textContent = `Menampilkan ${start + 1}–${end} dari ${fmtNum(total)} baris (Hal ${state.explorer.page}/${maxPage})`;
 }
 
 function exportExplorerCsv() {
-  const rows = state.data[state.explorer.mart] || [];
-  if (rows.length === 0) return;
-  const cols = Object.keys(rows[0]);
+  const filtered = getFilteredExplorerRows();
+  if (filtered.length === 0) return;
+  const cols = Object.keys(filtered[0]);
   let csv = cols.join(',') + '\n';
-  rows.forEach((r) => {
-    csv += cols.map((c) => `"${String(r[c] || '').replace(/"/g, '""')}"`).join(',') + '\n';
+  filtered.forEach((r) => {
+    csv += cols.map((c) => {
+      const val = (r[c] !== null && r[c] !== undefined) ? String(r[c]) : '';
+      return `"${val.replace(/"/g, '""')}"`;
+    }).join(',') + '\n';
   });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

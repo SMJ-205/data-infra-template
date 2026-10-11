@@ -48,6 +48,16 @@ models:
         data_tests:
           - not_null
           - unique
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('fct_orders')
+              field: order_id
+      - name: std_cost_per_unit
+        data_tests:
+          - not_null:
+              where: "is_revenue_line"
 
   - name: fct_orders
     description: Fact orders level transaksi order.
@@ -64,6 +74,9 @@ models:
         data_tests:
           - not_null
           - unique
+      - name: waste_cost_amount
+        data_tests:
+          - not_null
 
   - name: fct_refunds
     description: Fact refund pesanan.

@@ -1,27 +1,21 @@
 {{
   config(
-    materialized = 'incremental',
-    incremental_strategy = 'insert_overwrite',
+    materialized = 'table',
     partition_by = {'field': 'order_date', 'data_type': 'date', 'granularity': 'day'},
     cluster_by = ['outlet_id', 'menu_item_id'],
-    on_schema_change = 'append_new_columns',
     tags = ['finance', 'daily']
   )
 }}
 /*
   Grain   : 1 baris = 1 order_item_id
   Aturan  : is_revenue_line = order Completed AND line Served
-            diskon level order dialokasikan pro-rata ke gross line revenue
+            diskon level order dialokasikan pro-rata ke (gross - line_discount)
             diskon yang didanai Platform TIDAK mengurangi net sales merchant
             COGS standar = qty × (std cost menu + std cost modifier) pada tanggal order
-  Refresh : insert_overwrite partisi order_date >= max partisi - lookback_days
 */
 with orders as (
     select *
     from {{ ref('stg_pos__orders') }}
-    {% if is_incremental() %}
-    where order_date >= date_sub(_dbt_max_partition, interval {{ var('lookback_days') }} day)
-    {% endif %}
 ),
 
 items as (
@@ -88,8 +82,8 @@ allocated as (
         if(
             is_revenue_line,
             coalesce(order_discount_amount * safe_divide(
-                gross_sales_amount,
-                sum(if(is_revenue_line, gross_sales_amount, 0)) over (partition by order_id)
+                gross_sales_amount - line_discount_amount,
+                sum(if(is_revenue_line, gross_sales_amount - line_discount_amount, 0)) over (partition by order_id)
             ), 0),
             0
         ) as allocated_order_discount_amount

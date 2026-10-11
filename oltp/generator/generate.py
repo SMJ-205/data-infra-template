@@ -103,7 +103,9 @@ def db_url():
 
 
 def connect():
-    return psycopg.connect(db_url())
+    conn = psycopg.connect(db_url())
+    conn.autocommit = True
+    return conn
 
 
 # ----------------------------------------------------------------------------- master (dibaca dari DB)
@@ -138,12 +140,21 @@ class Master:
             self.mod_price[mid] = int(pd)
         for mid, ing, qd in q("select modifier_id, ingredient_id, qty_delta from fnb.modifier_lines"):
             self.mod_lines[mid].append((ing, float(qd)))
-        self.promos = {r[0]: (r[1], float(r[2])) for r in q(
-            "select promo_code, promo_type, promo_value from fnb.promotions")}
+        self.promos = {r[0]: (r[1], float(r[2]), r[3], r[4]) for r in q(
+            "select promo_code, promo_type, promo_value, start_date, coalesce(end_date, '9999-12-31'::date) from fnb.promotions")}
         self.employees = defaultdict(lambda: defaultdict(list))
         for eid, oid, role in q("select employee_id, outlet_id, job_role from fnb.employees order by employee_id"):
             self.employees[oid][role].append(eid)
         self._rl_cache = {}
+
+    def promo(self, code, day):
+        info = self.promos.get(code)
+        if not info:
+            return None
+        ptype, pval, start, end = info
+        if start <= day <= end:
+            return (ptype, pval)
+        return None
 
     def price(self, item, group, day):
         for f, t, p in self.prices[(item, group)]:
@@ -186,7 +197,7 @@ class Pool:
         self.dates, self.ids = [], []
 
     def add(self, day, ids):
-        for c in ids:
+        for c in sorted(ids):
             self.dates.append(day)
             self.ids.append(c)
 
@@ -397,8 +408,12 @@ def generate_day(M, pool, day):
                 promo = rnd.choice(CFG["promos"]["offline"])
             order_disc = 0
             if promo:
-                ptype, pval = M.promos[promo]
-                order_disc = int(base_amt * pval / 100) if ptype == "PERCENT" else int(min(pval, base_amt))
+                pinfo = M.promo(promo, day)
+                if pinfo:
+                    ptype, pval = pinfo
+                    order_disc = int(base_amt * pval / 100) if ptype == "PERCENT" else int(min(pval, base_amt))
+                else:
+                    promo = None
             after = base_amt - order_disc
             service = int(round(after * ocfg["service_charge_pct"] / 100)) if channel == "DINE_IN" else 0
             tax = int(round((after + service) * 0.10))
@@ -452,7 +467,8 @@ def generate_day(M, pool, day):
                 for m in ln["mods"]:
                     tgt.mods.append((oiid, m, M.mod_price[m], created, updated))
                 if not ln["void"]:
-                    order_item_refs.append((oiid, ln["qty"] * ln["price"]))
+                    net_item_paid = max(0, ln["qty"] * ln["price"] - ln["disc"] + sum(M.mod_price[m] for m in ln["mods"]))
+                    order_item_refs.append((oiid, net_item_paid))
                     if not cancelled:
                         u.sales[ln["item"]] += ln["qty"]
                         for m in ln["mods"]:
@@ -690,6 +706,17 @@ class Inventory:
                 self.lots[(o, ing)] = keep
                 log_waste(ing, expired, "EXPIRED", "Melewati shelf life")
 
+        # expired tambahan bakery di musim hujan (Nov - Feb)
+        if day.month in (11, 12, 1, 2):
+            bakery_prob = INV.get("bakery_rainy_expired_prob", 0.12)
+            for b_ing in ("ING_BREAD", "ING_CROIS"):
+                if b_ing in M.ingredients and rnd.random() < bakery_prob:
+                    lots = self.lots[(o, b_ing)]
+                    if lots and lots[0][1] > 0.5:
+                        exp_qty = round(lots[0][1] * 0.4, 3)
+                        lots[0][1] -= exp_qty
+                        log_waste(b_ing, exp_qty, "EXPIRED", "Roti/pastry kedaluwarsa musim hujan")
+
         # pemakaian rata-rata (EMA)
         if not closed:
             for ing in M.ingredients:
@@ -869,6 +896,22 @@ def cmd_reset(args):
         print("OK: data transaksi dan state generator dikosongkan (master dipertahankan)")
 
 
+def cmd_purge(args):
+    if not args.yes:
+        sys.exit("Tambahkan --yes untuk menjalankan purge retensi.")
+    cutoff = dt.date.today() - dt.timedelta(days=args.older_than_months * 30)
+    print(f"Purging transaksi sebelum {cutoff}...")
+    with connect() as conn:
+        with conn.transaction():
+            conn.execute("delete from fnb.orders where order_date < %s", (cutoff,))
+            conn.execute("delete from fnb.refunds where (refunded_at at time zone 'Asia/Jakarta')::date < %s", (cutoff,))
+            conn.execute("delete from fnb.waste_logs where (logged_at at time zone 'Asia/Jakarta')::date < %s", (cutoff,))
+            conn.execute("delete from fnb.stock_counts where count_date < %s", (cutoff,))
+            conn.execute("delete from fnb.goods_receipts where (received_at at time zone 'Asia/Jakarta')::date < %s", (cutoff,))
+            conn.execute("delete from fnb.operating_expenses where period_month < %s", (cutoff.replace(day=1),))
+        print("OK: Purge selesai.")
+
+
 def date_arg(s):
     return dt.date.fromisoformat(s)
 
@@ -882,6 +925,10 @@ def main():
     p.add_argument("--batch-days", type=int, default=14); p.set_defaults(fn=cmd_backfill)
     p = sub.add_parser("daily"); p.add_argument("--date", type=date_arg, required=True); p.set_defaults(fn=cmd_daily)
     p = sub.add_parser("stats"); p.set_defaults(fn=cmd_stats)
+    p = sub.add_parser("purge", help="Hapus transaksi historis lama untuk menjaga batas kapasitas Neon")
+    p.add_argument("--older-than-months", type=int, default=12)
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(fn=cmd_purge)
     p = sub.add_parser("reset"); p.add_argument("--yes", action="store_true"); p.set_defaults(fn=cmd_reset)
     args = ap.parse_args()
     args.fn(args)

@@ -3,9 +3,44 @@
     tags = ['inventory', 'mart']
 ) }}
 
-with counts as (
-    select outlet_id, ingredient_id, count_date, counted_qty_base
-    from {{ ref('fct_stock_counts') }}
+with raw_counts as (
+    -- bahan raw langsung
+    select
+        c.outlet_id,
+        c.ingredient_id,
+        c.count_date,
+        c.counted_qty_base
+    from {{ ref('fct_stock_counts') }} as c
+    inner join {{ ref('stg_pos__ingredients') }} as i
+        on i.ingredient_id = c.ingredient_id
+       and not i.is_prep_item
+
+    union all
+
+    -- prep item diurai ke ekuivalen bahan raw
+    select
+        c.outlet_id,
+        x.ingredient_id,
+        c.count_date,
+        c.counted_qty_base * x.qty_per_unit as counted_qty_base
+    from {{ ref('fct_stock_counts') }} as c
+    inner join {{ ref('stg_pos__ingredients') }} as i
+        on i.ingredient_id = c.ingredient_id
+       and i.is_prep_item
+    inner join {{ ref('int_item_explosion_daily') }} as x
+        on x.date_day = c.count_date
+       and x.item_type = 'Prep Item'
+       and x.item_id = c.ingredient_id
+),
+
+counts as (
+    select
+        outlet_id,
+        ingredient_id,
+        count_date,
+        sum(counted_qty_base) as counted_qty_base
+    from raw_counts
+    group by 1, 2, 3
 ),
 
 periods as (

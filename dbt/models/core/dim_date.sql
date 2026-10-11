@@ -34,6 +34,7 @@ select
     extract(year from d.date_day)                   as year,
     extract(quarter from d.date_day)                as quarter,
     extract(month from d.date_day)                  as month,
+    extract(isoyear from d.date_day)                as iso_year,
     extract(isoweek from d.date_day)                as iso_week,
     extract(dayofweek from d.date_day)              as day_of_week_num,
     format_date('%A', d.date_day)                   as day_of_week_name,

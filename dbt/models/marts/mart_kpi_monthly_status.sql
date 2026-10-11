@@ -25,6 +25,10 @@ kpi as (
     ))
 ),
 
+outlets as (
+    select outlet_id, outlet_type from {{ ref('dim_outlet') }}
+),
+
 thresholds as (
     select * from {{ ref('kpi_thresholds') }}
 )
@@ -40,6 +44,8 @@ select
     t.warn_threshold,
     t.critical_threshold,
     case
+        when k.metric_code = 'inventory_variance_pct' and abs(k.metric_value) >= t.critical_threshold then 'CRITICAL'
+        when k.metric_code = 'inventory_variance_pct' and abs(k.metric_value) >= t.warn_threshold     then 'WARN'
         when t.direction = 'higher_is_worse' and k.metric_value >= t.critical_threshold then 'CRITICAL'
         when t.direction = 'higher_is_worse' and k.metric_value >= t.warn_threshold     then 'WARN'
         when t.direction = 'lower_is_worse'  and k.metric_value <= t.critical_threshold then 'CRITICAL'
@@ -47,7 +53,13 @@ select
         else 'OK'
     end as status
 from kpi as k
+left join outlets as o on o.outlet_id = k.outlet_id
 inner join thresholds as t
     on t.metric_code = k.metric_code
+   and coalesce(t.outlet_type, 'ALL') in (o.outlet_type, 'ALL')
    and k.report_month >= t.effective_from
    and k.report_month <  coalesce(t.effective_to, date '9999-12-31')
+qualify row_number() over (
+    partition by k.report_month, k.outlet_id, k.metric_code
+    order by if(t.outlet_type = o.outlet_type, 1, 2)
+) = 1

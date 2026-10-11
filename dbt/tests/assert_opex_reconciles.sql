@@ -10,7 +10,10 @@ src as (
     from {{ ref('stg_pos__operating_expenses') }}
     group by 1
 )
-select m.report_month, m.opex as mart_opex, s.opex as source_opex
+select
+    coalesce(m.report_month, s.report_month) as report_month,
+    m.opex as mart_opex,
+    s.opex as source_opex
 from mart as m
-inner join src as s on s.report_month = m.report_month
-where abs(m.opex - s.opex) > 1
+full outer join src as s on s.report_month = m.report_month
+where abs(coalesce(m.opex, 0) - coalesce(s.opex, 0)) > 1

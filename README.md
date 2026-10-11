@@ -65,24 +65,24 @@ Seluruh komponen arsitektur berada dalam batas gratis permanen (*free-tier*) tan
 | **Serving (Web)** | Vercel | 100 GB bandwidth/bln | ~5.16 MB static JSON bundle | Static-only hosting (no serverless compute) |
 | **Serving (Alerts)**| Google Sheets & Apps Script | 6 menit execution/run | Sync run ~40 detik | Read-only cached tabs (no ad-hoc BQ queries) |
 
-> 🛡️ **Kompensasi Keamanan Biaya:** BigQuery API Quota diset permanen ke **0.02 TiB/hari** (~20 GB/hari) dan seluruh query dbt/script dibatasi oleh flag `maximum_bytes_billed: 2000000000` (2 GB). Query apapun yang melebihi batas ini akan langsung di-abort otomatis oleh GCP sebelum dieksekusi.
+> 🛡️ **Kompensasi Keamanan Biaya:** BigQuery Query Quota disarankan diset via GCP Cloud Console ke **0.02 TiB/hari** (~20 GB/hari) dan seluruh query dbt/script dibatasi oleh flag `maximum_bytes_billed: 2000000000` (2 GB). Query apapun yang melebihi batas ini akan langsung di-abort otomatis oleh GCP sebelum dieksekusi.
 
 ---
 
 ## 🧩 Fitur Analitik & Business Storytelling
 
-Dataset mensimulasikan jaringan F&B multi-outlet (6 gerai: Dine-in, Express, Cloud Kitchen, Kiosk) dengan cerita bisnis nyata yang tertanam:
+Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FLG-01`, Kiosk Dago Bandung `KIOSK-02`, dan Cloud Kitchen Kemang `CLOUD-03`) dengan cerita bisnis nyata yang tertanam:
 
 1. **Kasavana-Smith Menu Engineering Matrix (`mart_menu_engineering`)**:
    - Kategorisasi menu otomatis: **Stars** (Margin Tinggi, Volume Tinggi), **Plowhorses** (Margin Rendah, Volume Tinggi), **Puzzles** (Margin Tinggi, Volume Rendah), **Dogs** (Margin Rendah, Volume Rendah).
 2. **Rekonsiliasi Inventori Teoritis vs Aktual (`mart_inventory_variance`)**:
    - Membandingkan konsumsi resep standar (Theoretical BOM Explosion) terhadap hasil *Stock Opname* fisik bulanan.
-   - Mendeteksi anomali nyata seperti *incident overpour sirup* di KIOSK-02 dan *spoilage batch susu* di KIOSK-01.
+   - Mendeteksi anomali nyata seperti *incident overpour susu* di KIOSK-02 (+6% takaran tanpa tercatat di POS) dan *spoilage* berkala pada bahan segar serta bakery di musim hujan.
 3. **P&L Harian & Bulanan (`mart_pnl_daily`, `mart_pnl_monthly`)**:
    - P&L Harian berbasis *standard costing* untuk evaluasi cepat manajer gerai.
-   - P&L Bulanan berbasis *actual cost of sales* (termasuk variance inventori, alokasi OPEX sewa, utilitas, gaji, dan depresiasi peralatan).
+   - P&L Bulanan berbasis *actual cost of sales* (termasuk variance inventori, alokasi OPEX sewa, utilitas, gaji staf, perbaikan/pemeliharaan, dan pemasaran).
 4. **Kinerja Channel & Potongan Komisi (`mart_channel_performance_daily`)**:
-   - Transparansi margin antara transaksi *Dine-in/Takeaway* vs *Online Delivery* (GoFood 20%, GrabFood 20%, ShopeeFood 20%).
+   - Transparansi margin antara transaksi *Dine-in/Takeaway* vs *Online Delivery* (GoFood 20% naik ke 22% per 2026, GrabFood 20%, ShopeeFood 18%).
 5. **Traffic & Heatmap Operasional (`mart_orders_hourly`)**:
    - Pola lonjakan jam makan siang (11:00–13:00) dan makan malam (18:00–20:00) untuk optimasi jadwal staf barista & dapur.
 
@@ -188,22 +188,27 @@ pip install -r dashboard/requirements.txt
 
 ### 4. Eksekusi Pipeline Lokal
 ```bash
-# 1. Jalankan dlt Ingestion (Postgres -> BigQuery raw_fnb)
+# 1. Inisialisasi OLTP Database (Neon PostgreSQL)
+python oltp/generator/generate.py apply-schema
+python oltp/generator/generate.py init-master
+python oltp/generator/generate.py backfill --start 2025-07-01 --end 2026-10-11
+
+# 2. Jalankan dlt Ingestion (Postgres -> BigQuery raw_fnb)
 python ingestion/pipeline.py
 
-# 2. Verifikasi Konsistensi Neon vs BigQuery
+# 3. Verifikasi Konsistensi Neon vs BigQuery
 python scripts/reconcile_neon_bigquery.py
 
-# 3. Jalankan dbt Build (Seeds, Snapshots, Models, Tests)
+# 4. Jalankan dbt Build (Seeds, Snapshots, Models, Tests)
 cd dbt
 dbt deps
 dbt build --target prod
 cd ..
 
-# 4. Ekspor Data Marts ke JSON Dashboard
+# 5. Ekspor Data Marts ke JSON Dashboard
 python dashboard/export_marts.py
 
-# 5. Jalankan PII & Schema Guard
+# 6. Jalankan PII & Schema Guard
 python scripts/check_pii_columns.py
 ```
 

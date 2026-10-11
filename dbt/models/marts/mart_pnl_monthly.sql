@@ -31,7 +31,8 @@ monthly as (
         sum(channel_commission)         as channel_commission,
         sum(payment_fees)               as payment_fees,
         sum(labor_cost)                 as labor_cost,
-        sum(other_opex)                 as other_opex
+        sum(other_opex)                 as other_opex,
+        logical_or(is_opex_estimated)   as is_opex_estimated
     from daily
     group by 1, 2
 ),

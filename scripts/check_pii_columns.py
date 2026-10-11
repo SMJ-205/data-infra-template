@@ -5,21 +5,31 @@ import sys
 
 import yaml
 
-PII = re.compile(r"(email|phone|telp|full_name|address|alamat|birth|nik|account_number)", re.I)
+PII = re.compile(r"(email|phone|telp|mobile|hp|dob|birth|nik|account_number|full_name|address|alamat)", re.I)
+NAME_EXEMPTIONS = {
+    "outlet_name", "menu_name", "channel_name", "reason_name",
+    "category_name", "metric_name", "table_name", "supplier_name",
+    "ingredient_name",
+}
 ALLOWED = {"hashed", "generalized", "dropped"}
 
 bad = []
 model_dir = sys.argv[1] if len(sys.argv) > 1 else "dbt/models"
 for path in pathlib.Path(model_dir).rglob("*.yml"):
     try:
-        doc = yaml.safe_load(path.read_text()) or {}
-    except Exception:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception as e:
+        print(f"Warning: gagal parse YAML di {path}: {e}", file=sys.stderr)
         continue
     for model in doc.get("models", []):
         for col in model.get("columns", []):
+            col_name = col.get("name", "")
             meta = (col.get("config") or {}).get("meta") or col.get("meta") or {}
-            if PII.search(col.get("name", "")) and meta.get("pii") not in ALLOWED:
-                bad.append(f"{path}: {model.get('name', 'unknown')}.{col.get('name', '')}")
+            is_pii = bool(PII.search(col_name))
+            if not is_pii and re.search(r"(^|_)name$", col_name, re.I) and col_name.lower() not in NAME_EXEMPTIONS:
+                is_pii = True
+            if is_pii and meta.get("pii") not in ALLOWED:
+                bad.append(f"{path}: {model.get('name', 'unknown')}.{col_name}")
 
 # Scan dashboard exported JSON files if directory exists
 data_candidates = [pathlib.Path("dashboard/public/data"), pathlib.Path("../dashboard/public/data")]

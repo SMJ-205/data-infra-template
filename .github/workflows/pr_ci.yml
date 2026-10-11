@@ -2,7 +2,11 @@ name: pr-ci
 
 on:
   pull_request:
-    paths: ['dbt/**', 'scripts/**']
+    paths: ['dbt/**', 'scripts/**', 'dashboard/**', 'ingestion/**', '.github/workflows/**']
+
+concurrency:
+  group: pr-ci-${{ github.event.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -43,7 +47,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          RUN_ID=$(gh run list --workflow daily_pipeline.yml --status success --limit 1 --json databaseId -q '.[0].databaseId' || true)
+          RUN_ID=$(gh run list --workflow daily_pipeline.yml --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId' || true)
           if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
             gh run download "$RUN_ID" --name prod-manifest --dir prod_state || true
           fi
@@ -66,6 +70,6 @@ jobs:
       - name: Hapus dataset CI
         if: always()
         run: |
-          for ds in $(bq ls --format=json --project_id "$GCP_PROJECT_ID" | jq -r '.[].datasetReference.datasetId' | grep "^dbt_ci_pr${PR_NUMBER}" || true); do
+          for ds in $(bq ls --max_results=1000 --format=json --project_id "$GCP_PROJECT_ID" | jq -r '.[].datasetReference.datasetId' | grep -E "^dbt_ci_pr${PR_NUMBER}(_|$)" || true); do
             bq rm -r -f -d "$GCP_PROJECT_ID:$ds"
           done

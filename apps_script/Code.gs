@@ -189,8 +189,12 @@ function notifyAlerts_(kpi) {
     (r[col('is_complete_month')] === false && r[col('status')] === 'CRITICAL'));
   if (alerts.length === 0) return;
 
+  const sigPayload = alerts
+    .map(r => [r[col('month')], r[col('outlet')], r[col('metric_code')], r[col('status')]].join(':'))
+    .sort()
+    .join('|');
   const signature = Utilities.base64Encode(
-    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, JSON.stringify(alerts)));
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sigPayload));
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty('LAST_ALERT_SIG') === signature) return;
 

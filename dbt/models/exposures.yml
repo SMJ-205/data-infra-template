@@ -28,3 +28,4 @@ exposures:
       - ref('mart_menu_engineering')
       - ref('mart_channel_performance_daily')
       - ref('mart_orders_hourly')
+      - ref('mart_category_performance_daily')

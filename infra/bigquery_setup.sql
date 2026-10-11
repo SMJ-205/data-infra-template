@@ -40,11 +40,8 @@ GRANT `roles/bigquery.dataEditor` ON SCHEMA `<PROJECT_ID>.snapshots`
 GRANT `roles/bigquery.dataEditor` ON SCHEMA `<PROJECT_ID>.ops_elementary`
   TO "serviceAccount:sa-dbt@<PROJECT_ID>.iam.gserviceaccount.com";
 
--- sa-github-ci: baca semua layer (dataset CI per PR dibuat sendiri lewat role bigquery.user)
-GRANT `roles/bigquery.dataViewer` ON SCHEMA `<PROJECT_ID>.raw_fnb`
-  TO "serviceAccount:sa-github-ci@<PROJECT_ID>.iam.gserviceaccount.com";
-GRANT `roles/bigquery.dataViewer` ON SCHEMA `<PROJECT_ID>.ops_secrets`
-  TO "serviceAccount:sa-github-ci@<PROJECT_ID>.iam.gserviceaccount.com";
+-- sa-github-ci: baca layer transformasi terkurasi (dataset CI per PR dibuat sendiri lewat role bigquery.user)
+-- Tidak memiliki akses ke raw_fnb (raw PII) maupun ops_secrets (pii_salt) demi keamanan PR
 GRANT `roles/bigquery.dataViewer` ON SCHEMA `<PROJECT_ID>.stg`
   TO "serviceAccount:sa-github-ci@<PROJECT_ID>.iam.gserviceaccount.com";
 GRANT `roles/bigquery.dataViewer` ON SCHEMA `<PROJECT_ID>.int`

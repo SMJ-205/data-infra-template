@@ -74,10 +74,18 @@ exploded as (
 
     union all
 
-    -- 2) komponen prep diurai ke bahan raw
-    select f.date_day, f.item_type, f.item_id, p.raw_id, f.qty_per_unit * p.qty_per_unit
+    -- 2) komponen prep diurai ke bahan raw (left join agar prep tanpa resep aktif tetap keluar dengan raw_id NULL)
+    select
+        f.date_day,
+        f.item_type,
+        f.item_id,
+        p.raw_id as ingredient_id,
+        f.qty_per_unit * coalesce(p.qty_per_unit, cast(1 as numeric)) as qty_per_unit
     from first_level as f
-    inner join prep_to_raw as p
+    inner join ingredients as i
+        on i.ingredient_id = f.component_id
+       and i.is_prep_item
+    left join prep_to_raw as p
         on p.date_day = f.date_day
        and p.prep_id = f.component_id
 

@@ -1,4 +1,4 @@
-dlt[bigquery,sql_database]>=1.6.0
-pyarrow>=17.0.0
-psycopg2-binary>=2.9.9
-google-cloud-bigquery>=3.25.0
+dlt[bigquery,sql_database]==1.6.1
+pyarrow==17.0.0
+psycopg2-binary==2.9.9
+google-cloud-bigquery==3.25.0

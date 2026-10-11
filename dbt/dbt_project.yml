@@ -48,8 +48,7 @@ models:
       +materialized: table
       +schema: marts
       +tags: ["mart"]
-  elementary:
-    +schema: ops_elementary
+
 
 seeds:
   fnb_data_platform:

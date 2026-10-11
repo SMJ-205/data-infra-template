@@ -64,14 +64,20 @@ if ! gcloud iam workload-identity-pools providers describe github-oidc \
   gcloud iam workload-identity-pools providers create-oidc github-oidc \
     --location=global --workload-identity-pool=github --project "$PROJECT" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref" \
     --attribute-condition="assertion.repository=='${GITHUB_REPO}'"
 fi
 
-PRINCIPAL_SET="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/attribute.repository/${GITHUB_REPO}"
-for sa in "${SERVICE_ACCOUNTS[@]}"; do
+# sa-github-ci dapat diimpersonasi oleh repo ini (seluruh branch / PR)
+PRINCIPAL_REPO="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/attribute.repository/${GITHUB_REPO}"
+gcloud iam service-accounts add-iam-policy-binding "sa-github-ci@$PROJECT.iam.gserviceaccount.com" \
+  --role=roles/iam.workloadIdentityUser --member="$PRINCIPAL_REPO" --project "$PROJECT" --quiet >/dev/null
+
+# SA prod (sa-ingest, sa-dbt, sa-export) hanya dapat diimpersonasi oleh branch main
+PRINCIPAL_MAIN="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/attribute.ref/refs/heads/main"
+for sa in sa-ingest sa-dbt sa-export; do
   gcloud iam service-accounts add-iam-policy-binding "$sa@$PROJECT.iam.gserviceaccount.com" \
-    --role=roles/iam.workloadIdentityUser --member="$PRINCIPAL_SET" --project "$PROJECT" --quiet >/dev/null
+    --role=roles/iam.workloadIdentityUser --member="$PRINCIPAL_MAIN" --project "$PROJECT" --quiet >/dev/null
 done
 
 WIF_PROVIDER="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/providers/github-oidc"
@@ -83,13 +89,14 @@ sed "s/<PROJECT_ID>/${PROJECT}/g; s/<REGION>/${REGION}/g" "$HERE/bigquery_setup.
 
 # ------------------------------------------------------------ Budget alert (opsional)
 if [[ -n "${GCP_BILLING_ACCOUNT_ID:-}" ]]; then
-  log "Budget alert USD 1 (notifikasi saja, tidak menghentikan tagihan)"
+  BUDGET_AMOUNT="${GCP_BUDGET_AMOUNT:-1USD}"
+  log "Budget alert ${BUDGET_AMOUNT} (notifikasi saja, tidak menghentikan tagihan)"
   if gcloud billing budgets list --billing-account="$GCP_BILLING_ACCOUNT_ID" \
        --format='value(displayName)' | grep -qx 'fnb-guard'; then
     echo "Budget fnb-guard sudah ada, dilewati."
   else
     gcloud billing budgets create --billing-account="$GCP_BILLING_ACCOUNT_ID" \
-      --display-name="fnb-guard" --budget-amount=1USD \
+      --display-name="fnb-guard" --budget-amount="${BUDGET_AMOUNT}" \
       --filter-projects="projects/${PROJECT_NUMBER}" \
       --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
   fi
