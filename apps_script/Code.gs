@@ -131,24 +131,42 @@ function syncPnl_() {
       FORMAT_DATE('%Y-%m', report_month)                         AS month,
       IFNULL(outlet_id, 'ALL')                                   AS outlet,
       LOGICAL_AND(is_complete_month)                             AS is_complete_month,
-      SUM(gross_sales) AS gross_sales, SUM(discounts) AS discounts, SUM(refunds) AS refunds,
-      SUM(net_sales) AS net_sales, SUM(cogs_standard) AS cogs_standard, SUM(waste_cost) AS waste_cost,
-      SUM(inventory_variance_cost) AS inventory_variance, SUM(actual_cost_of_sales) AS cost_of_sales,
-      SUM(gross_profit) AS gross_profit, SUM(channel_commission) AS channel_commission,
-      SUM(payment_fees) AS payment_fees, SUM(labor_cost) AS labor_cost, SUM(other_opex) AS other_opex,
-      SUM(outlet_ebitda) AS ebitda,
+      SUM(order_count)                                           AS order_count,
+      SUM(gross_sales)                                           AS gross_sales,
+      SUM(discounts)                                             AS discounts,
+      SUM(refunds)                                               AS refunds,
+      SUM(net_sales)                                             AS net_sales,
+      SUM(cogs_standard)                                         AS cogs_standard,
+      SUM(waste_cost)                                            AS waste_cost,
+      SUM(inventory_variance_cost)                               AS inventory_variance,
+      SUM(actual_cost_of_sales)                                  AS cost_of_sales,
+      SUM(gross_profit)                                          AS gross_profit,
+      SUM(channel_commission)                                    AS channel_commission,
+      SUM(payment_fees)                                          AS payment_fees,
+      SUM(labor_cost)                                            AS labor_cost,
+      SUM(other_opex)                                            AS other_opex,
+      SUM(channel_commission) + SUM(payment_fees) + SUM(labor_cost) + SUM(other_opex) AS total_opex,
+      SUM(outlet_ebitda)                                         AS ebitda,
+      ROUND(SAFE_DIVIDE(SUM(net_sales), SUM(order_count)), 0)                                   AS avg_order_value,
+      ROUND(SAFE_DIVIDE(SUM(gross_profit), SUM(net_sales)) * 100, 2)                           AS gross_margin_pct,
       ROUND(SAFE_DIVIDE(SUM(actual_cost_of_sales), SUM(net_sales)) * 100, 2)                   AS food_cost_pct,
       ROUND(SAFE_DIVIDE(SUM(waste_cost), SUM(net_sales)) * 100, 2)                             AS waste_pct,
+      ROUND(SAFE_DIVIDE(SUM(inventory_variance_cost), SUM(net_sales)) * 100, 2)                AS inventory_variance_pct,
+      ROUND(SAFE_DIVIDE(SUM(labor_cost), SUM(net_sales)) * 100, 2)                             AS labor_cost_pct,
       ROUND(SAFE_DIVIDE(SUM(actual_cost_of_sales) + SUM(labor_cost), SUM(net_sales)) * 100, 2) AS prime_cost_pct,
-      ROUND(SAFE_DIVIDE(SUM(outlet_ebitda), SUM(net_sales)) * 100, 2)                          AS ebitda_margin_pct
+      ROUND(SAFE_DIVIDE(SUM(channel_commission) + SUM(payment_fees) + SUM(labor_cost) + SUM(other_opex), SUM(net_sales)) * 100, 2) AS opex_ratio_pct,
+      ROUND(SAFE_DIVIDE(SUM(outlet_ebitda), SUM(net_sales)) * 100, 2)                          AS ebitda_margin_pct,
+      ROUND(SAFE_DIVIDE(SUM(discounts), SUM(gross_sales)) * 100, 2)                            AS discount_rate_pct
     FROM ${table_('mart_pnl_monthly')}
     WHERE report_month >= DATE_SUB(DATE_TRUNC(CURRENT_DATE('${TZ}'), MONTH), INTERVAL 12 MONTH)
     GROUP BY GROUPING SETS ((report_month, outlet_id), (report_month))
     ORDER BY month DESC, outlet`;
   writeTable_('PnL_Monthly', runQuery_(sql), {
     [RP]: ['gross_sales', 'discounts', 'refunds', 'net_sales', 'cogs_standard', 'waste_cost', 'inventory_variance',
-           'cost_of_sales', 'gross_profit', 'channel_commission', 'payment_fees', 'labor_cost', 'other_opex', 'ebitda'],
-    [PCT]: ['food_cost_pct', 'waste_pct', 'prime_cost_pct', 'ebitda_margin_pct'],
+           'cost_of_sales', 'gross_profit', 'channel_commission', 'payment_fees', 'labor_cost', 'other_opex',
+           'total_opex', 'ebitda', 'avg_order_value'],
+    [PCT]: ['gross_margin_pct', 'food_cost_pct', 'waste_pct', 'inventory_variance_pct', 'labor_cost_pct',
+            'prime_cost_pct', 'opex_ratio_pct', 'ebitda_margin_pct', 'discount_rate_pct'],
   });
 }
 
