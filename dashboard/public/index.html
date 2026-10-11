@@ -116,10 +116,21 @@
           <option value="ALL">Semua Outlet (Konsolidasi)</option>
         </select>
         
-        <span class="filter-label">Periode Bulan:</span>
-        <select id="select-month" class="filter-select">
-          <option value="ALL">Semua Bulan (Trailing)</option>
+        <span class="filter-label">Preset:</span>
+        <select id="select-date-preset" class="filter-select">
+          <option value="ALL">Semua Data (Trailing)</option>
+          <option value="MTD" selected>Bulan Terakhir (MTD)</option>
+          <option value="LAST_30">30 Hari Terakhir</option>
+          <option value="LAST_7">7 Hari Terakhir</option>
+          <option value="CUSTOM">Custom Rentang Tanggal</option>
         </select>
+
+        <div class="date-range-wrapper" id="date-range-wrapper">
+          <span class="filter-label">Rentang:</span>
+          <input type="date" id="input-start-date" class="filter-input-date" aria-label="Tanggal Mulai">
+          <span class="date-sep">s/d</span>
+          <input type="date" id="input-end-date" class="filter-input-date" aria-label="Tanggal Selesai">
+        </div>
       </div>
       <div class="filter-group">
         <span class="pill-badge" id="badge-records-count">Total Data: Memuat...</span>

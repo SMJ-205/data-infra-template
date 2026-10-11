@@ -282,6 +282,38 @@ body {
   box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
 }
 
+.date-range-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-input-date {
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  color: var(--text-title);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.filter-input-date:focus {
+  border-color: var(--brand-yellow);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
+}
+
+.date-sep {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
 /* ==========================================================================
    Navigation Tabs (Clean Pill Style, No Emojis)
    ========================================================================== */

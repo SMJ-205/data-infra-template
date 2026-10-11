@@ -9,7 +9,10 @@ const state = {
   meta: null,
   activeTab: 'pnl',
   selectedOutlet: 'ALL',
-  selectedMonth: 'ALL',
+  datePreset: 'MTD',
+  dateRange: { start: '', end: '' },
+  minAvailableDate: '',
+  maxAvailableDate: '',
   selectedCategory: 'ALL',
   explorer: {
     mart: 'pnl_monthly',
@@ -42,6 +45,46 @@ const fmtRp = (v) => 'Rp\u00A0' + Math.round(Number(v) || 0).toLocaleString('id-
 const fmtRpCompact = (v) => `<span class="kpi-currency">Rp</span><span>${Math.round(Number(v) || 0).toLocaleString('id-ID')}</span>`;
 const fmtPct = (v) => (v === null || v === undefined || isNaN(v) ? '-' : Number(v).toFixed(1) + '%');
 const fmtNum = (v) => Math.round(Number(v) || 0).toLocaleString('id-ID');
+
+function dateAddDays(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+function applyDatePreset(preset) {
+  const maxDate = state.maxAvailableDate || '2026-10-11';
+  const minDate = state.minAvailableDate || '2025-07-01';
+  state.datePreset = preset;
+
+  if (preset === 'ALL') {
+    state.dateRange.start = minDate;
+    state.dateRange.end = maxDate;
+  } else if (preset === 'MTD') {
+    const parts = maxDate.split('-');
+    state.dateRange.start = `${parts[0]}-${parts[1]}-01`;
+    state.dateRange.end = maxDate;
+  } else if (preset === 'LAST_30') {
+    state.dateRange.start = dateAddDays(maxDate, -29);
+    state.dateRange.end = maxDate;
+  } else if (preset === 'LAST_7') {
+    state.dateRange.start = dateAddDays(maxDate, -6);
+    state.dateRange.end = maxDate;
+  }
+
+  const inputStart = document.getElementById('input-start-date');
+  const inputEnd = document.getElementById('input-end-date');
+  const selectPreset = document.getElementById('select-date-preset');
+  if (selectPreset) selectPreset.value = preset;
+  if (inputStart && inputEnd) {
+    inputStart.value = state.dateRange.start;
+    inputEnd.value = state.dateRange.end;
+    inputStart.min = minDate;
+    inputStart.max = maxDate;
+    inputEnd.min = minDate;
+    inputEnd.max = maxDate;
+  }
+}
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', async () => {
@@ -78,10 +121,33 @@ function setupFilterListeners() {
     renderActiveTab();
   });
 
-  document.getElementById('select-month').addEventListener('change', (e) => {
-    state.selectedMonth = e.target.value;
+  const presetSelect = document.getElementById('select-date-preset');
+  if (presetSelect) {
+    presetSelect.addEventListener('change', (e) => {
+      const p = e.target.value;
+      if (p !== 'CUSTOM') {
+        applyDatePreset(p);
+        renderActiveTab();
+      }
+    });
+  }
+
+  const inputStart = document.getElementById('input-start-date');
+  const inputEnd = document.getElementById('input-end-date');
+  const onDateChange = () => {
+    if (!inputStart.value || !inputEnd.value) return;
+    if (inputStart.value > inputEnd.value) {
+      inputEnd.value = inputStart.value;
+    }
+    state.dateRange.start = inputStart.value;
+    state.dateRange.end = inputEnd.value;
+    state.datePreset = 'CUSTOM';
+    if (presetSelect) presetSelect.value = 'CUSTOM';
     renderActiveTab();
-  });
+  };
+
+  if (inputStart) inputStart.addEventListener('change', onDateChange);
+  if (inputEnd) inputEnd.addEventListener('change', onDateChange);
 
   document.getElementById('select-menu-category').addEventListener('change', (e) => {
     state.selectedCategory = e.target.value;
@@ -174,7 +240,7 @@ async function loadData() {
 function populateFilters() {
   // Populate outlets
   const outletsSet = new Set();
-  (state.data.pnl_monthly || []).forEach((r) => {
+  (state.data.pnl_daily || state.data.pnl_monthly || []).forEach((r) => {
     if (r.outlet_id) outletsSet.add(r.outlet_id);
   });
   const selectOutlet = document.getElementById('select-outlet');
@@ -186,19 +252,18 @@ function populateFilters() {
     selectOutlet.appendChild(opt);
   });
 
-  // Populate months
-  const monthsSet = new Set();
-  (state.data.pnl_monthly || []).forEach((r) => {
-    if (r.report_month) monthsSet.add(r.report_month);
-  });
-  const selectMonth = document.getElementById('select-month');
-  selectMonth.innerHTML = '<option value="ALL">Semua Bulan (Trailing)</option>';
-  [...monthsSet].sort().reverse().forEach((month) => {
-    const opt = document.createElement('option');
-    opt.value = month;
-    opt.textContent = month;
-    selectMonth.appendChild(opt);
-  });
+  // Determine min and max dates from pnl_daily
+  const allDates = [...new Set((state.data.pnl_daily || []).map((r) => r.report_date).filter(Boolean))].sort();
+  if (allDates.length > 0) {
+    state.minAvailableDate = allDates[0];
+    state.maxAvailableDate = allDates[allDates.length - 1];
+  } else {
+    state.minAvailableDate = '2025-07-01';
+    state.maxAvailableDate = '2026-10-11';
+  }
+
+  // Set default preset to MTD (Bulan Terakhir)
+  applyDatePreset('MTD');
 }
 
 function renderActiveTab() {
@@ -226,56 +291,63 @@ function renderActiveTab() {
 
 // TAB 1: EXECUTIVE P&L
 function renderPnlExecutive() {
-  const pnlMonthly = state.data.pnl_monthly || [];
-  let filtered = pnlMonthly;
+  const pnlDaily = state.data.pnl_daily || [];
+  let filtered = pnlDaily;
   if (state.selectedOutlet !== 'ALL') {
     filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
   }
 
-  // Group by month
-  const monthsMap = {};
-  filtered.forEach((r) => {
-    const m = r.report_month;
-    if (!monthsMap[m]) {
-      monthsMap[m] = {
-        net_sales: 0,
-        gross_sales: 0,
-        discounts: 0,
-        actual_cost_of_sales: 0,
-        theoretical_cost_of_sales: 0,
-        waste_cost: 0,
-        labor_cost: 0,
-        other_opex: 0,
-        channel_commission: 0,
-        payment_fees: 0,
-        outlet_ebitda: 0,
-        order_count: 0,
-      };
-    }
-    const acc = monthsMap[m];
-    acc.net_sales += Number(r.net_sales) || 0;
-    acc.gross_sales += Number(r.gross_sales) || 0;
-    acc.discounts += Number(r.discounts) || 0;
-    acc.actual_cost_of_sales += Number(r.actual_cost_of_sales) || 0;
-    acc.theoretical_cost_of_sales += Number(r.theoretical_cost_of_sales) || 0;
-    acc.waste_cost += Number(r.waste_cost) || 0;
-    acc.labor_cost += Number(r.labor_cost) || 0;
-    acc.other_opex += Number(r.other_opex) || 0;
-    acc.channel_commission += Number(r.channel_commission) || 0;
-    acc.payment_fees += Number(r.payment_fees) || 0;
-    acc.outlet_ebitda += Number(r.outlet_ebitda) || 0;
-    acc.order_count += Number(r.order_count) || 0;
-  });
+  const { start, end } = state.dateRange;
+  if (!start || !end) return;
 
-  const sortedMonths = Object.keys(monthsMap).sort();
-  if (sortedMonths.length === 0) return;
+  // Filter current period daily rows
+  const curDaily = filtered.filter((r) => r.report_date >= start && r.report_date <= end);
 
-  const latestMonthKey = state.selectedMonth !== 'ALL' ? state.selectedMonth : sortedMonths[sortedMonths.length - 1];
-  const cur = monthsMap[latestMonthKey] || {};
-  const prevMonthKey = sortedMonths[sortedMonths.indexOf(latestMonthKey) - 1];
-  const prev = monthsMap[prevMonthKey] || cur;
+  // Compute duration in days and previous period
+  const dStart = new Date(start);
+  const dEnd = new Date(end);
+  const dayCount = Math.max(1, Math.round((dEnd - dStart) / 86400000) + 1);
+  const prevEnd = dateAddDays(start, -1);
+  const prevStart = dateAddDays(prevEnd, -(dayCount - 1));
+  const prevDaily = filtered.filter((r) => r.report_date >= prevStart && r.report_date <= prevEnd);
 
-  // Render KPI Cards (GoMeal Balance & Performance Style)
+  // Aggregation helper
+  const aggregateRows = (rows) => {
+    const acc = {
+      net_sales: 0,
+      gross_sales: 0,
+      discounts: 0,
+      cost_of_sales: 0,
+      actual_cost_of_sales: 0,
+      waste_cost: 0,
+      labor_cost: 0,
+      other_opex: 0,
+      channel_commission: 0,
+      payment_fees: 0,
+      outlet_ebitda: 0,
+      order_count: 0,
+    };
+    rows.forEach((r) => {
+      acc.net_sales += Number(r.net_sales) || 0;
+      acc.gross_sales += Number(r.gross_sales) || 0;
+      acc.discounts += Number(r.discounts) || 0;
+      acc.actual_cost_of_sales += Number(r.cost_of_sales || r.actual_cost_of_sales) || 0;
+      acc.cost_of_sales += Number(r.cost_of_sales) || 0;
+      acc.waste_cost += Number(r.waste_cost) || 0;
+      acc.labor_cost += Number(r.labor_cost) || 0;
+      acc.other_opex += Number(r.other_opex) || 0;
+      acc.channel_commission += Number(r.channel_commission) || 0;
+      acc.payment_fees += Number(r.payment_fees) || 0;
+      acc.outlet_ebitda += Number(r.outlet_ebitda) || 0;
+      acc.order_count += Number(r.order_count) || 0;
+    });
+    return acc;
+  };
+
+  const cur = aggregateRows(curDaily);
+  const prev = aggregateRows(prevDaily.length > 0 ? prevDaily : curDaily);
+
+  // Percentages
   const curFoodCostPct = cur.net_sales ? (cur.actual_cost_of_sales / cur.net_sales) * 100 : 0;
   const prevFoodCostPct = prev.net_sales ? (prev.actual_cost_of_sales / prev.net_sales) * 100 : 0;
   const curPrimeCostPct = cur.net_sales ? ((cur.actual_cost_of_sales + cur.labor_cost) / cur.net_sales) * 100 : 0;
@@ -287,15 +359,17 @@ function renderPnlExecutive() {
   const curAov = cur.order_count ? cur.net_sales / cur.order_count : 0;
   const prevAov = prev.order_count ? prev.net_sales / prev.order_count : 0;
 
+  const dateLabel = `${start.substring(5)} s/d ${end.substring(5)} (${dayCount} hr)`;
+
   const cardsHtml = `
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Net Sales Bersih</span>
-        <span class="badge-tag badge-star">${latestMonthKey}</span>
+        <span class="badge-tag badge-star">${dateLabel}</span>
       </div>
       <div class="kpi-value">${fmtRpCompact(cur.net_sales)}</div>
       <div class="kpi-delta ${cur.net_sales >= prev.net_sales ? 'good' : 'bad'}">
-        ${cur.net_sales >= prev.net_sales ? '▲ +' : '▼ -'}${fmtRp(Math.abs(cur.net_sales - prev.net_sales))} vs MoM
+        ${cur.net_sales >= prev.net_sales ? '▲ +' : '▼ -'}${fmtRp(Math.abs(cur.net_sales - prev.net_sales))} vs Periode Lalu
       </div>
       <div class="kpi-subtext">Gross: ${fmtRp(cur.gross_sales)} (Diskon ${fmtRp(cur.discounts)})</div>
     </div>
@@ -307,7 +381,7 @@ function renderPnlExecutive() {
       </div>
       <div class="kpi-value">${fmtPct(curFoodCostPct)}</div>
       <div class="kpi-delta ${curFoodCostPct <= prevFoodCostPct ? 'good' : 'bad'}">
-        ${curFoodCostPct <= prevFoodCostPct ? '▼ -' : '▲ +'}${Math.abs(curFoodCostPct - prevFoodCostPct).toFixed(1)} pp vs MoM
+        ${curFoodCostPct <= prevFoodCostPct ? '▼ -' : '▲ +'}${Math.abs(curFoodCostPct - prevFoodCostPct).toFixed(1)} pp vs Periode Lalu
       </div>
       <div class="kpi-subtext">HPP Aktual: ${fmtRp(cur.actual_cost_of_sales)}</div>
     </div>
@@ -319,7 +393,7 @@ function renderPnlExecutive() {
       </div>
       <div class="kpi-value">${fmtPct(curPrimeCostPct)}</div>
       <div class="kpi-delta ${curPrimeCostPct <= prevPrimeCostPct ? 'good' : 'bad'}">
-        ${curPrimeCostPct <= prevPrimeCostPct ? '▼ -' : '▲ +'}${Math.abs(curPrimeCostPct - prevPrimeCostPct).toFixed(1)} pp vs MoM
+        ${curPrimeCostPct <= prevPrimeCostPct ? '▼ -' : '▲ +'}${Math.abs(curPrimeCostPct - prevPrimeCostPct).toFixed(1)} pp vs Periode Lalu
       </div>
       <div class="kpi-subtext">Biaya Staf: ${fmtRp(cur.labor_cost)}</div>
     </div>
@@ -331,7 +405,7 @@ function renderPnlExecutive() {
       </div>
       <div class="kpi-value">${fmtPct(curWastePct)}</div>
       <div class="kpi-delta ${curWastePct <= prevWastePct ? 'good' : 'bad'}">
-        ${curWastePct <= prevWastePct ? '▼ -' : '▲ +'}${Math.abs(curWastePct - prevWastePct).toFixed(1)} pp vs MoM
+        ${curWastePct <= prevWastePct ? '▼ -' : '▲ +'}${Math.abs(curWastePct - prevWastePct).toFixed(1)} pp vs Periode Lalu
       </div>
       <div class="kpi-subtext">Biaya Limbah: ${fmtRp(cur.waste_cost)}</div>
     </div>
@@ -343,7 +417,7 @@ function renderPnlExecutive() {
       </div>
       <div class="kpi-value">${fmtPct(curEbitdaPct)}</div>
       <div class="kpi-delta ${curEbitdaPct >= prevEbitdaPct ? 'good' : 'bad'}">
-        ${curEbitdaPct >= prevEbitdaPct ? '▲ +' : '▼ -'}${Math.abs(curEbitdaPct - prevEbitdaPct).toFixed(1)} pp vs MoM
+        ${curEbitdaPct >= prevEbitdaPct ? '▲ +' : '▼ -'}${Math.abs(curEbitdaPct - prevEbitdaPct).toFixed(1)} pp vs Periode Lalu
       </div>
       <div class="kpi-subtext">EBITDA: ${fmtRp(cur.outlet_ebitda)}</div>
     </div>
@@ -355,30 +429,59 @@ function renderPnlExecutive() {
       </div>
       <div class="kpi-value">${fmtRpCompact(curAov)}</div>
       <div class="kpi-delta ${curAov >= prevAov ? 'good' : 'bad'}">
-        ${curAov >= prevAov ? '▲ +' : '▼ -'}${fmtRp(Math.abs(curAov - prevAov))} vs MoM
+        ${curAov >= prevAov ? '▲ +' : '▼ -'}${fmtRp(Math.abs(curAov - prevAov))} vs Periode Lalu
       </div>
       <div class="kpi-subtext">Keranjang Belanja Bersih</div>
     </div>
   `;
   document.getElementById('kpi-cards-container').innerHTML = cardsHtml;
 
-  // Render Monthly Trend Chart
-  renderTrendChart(sortedMonths, monthsMap);
+  // Render Dynamic Trend Chart
+  renderDynamicTrendChart(curDaily, dayCount);
 
   // Render Waterfall Chart
   renderWaterfallChart(cur);
 
-  // Render KPI Status Table
-  renderKpiTable(latestMonthKey);
+  // Render KPI Status Table for corresponding month
+  const targetMonthKey = end.substring(0, 7) + '-01';
+  renderKpiTable(targetMonthKey);
 }
 
-function renderTrendChart(months, map) {
+function renderDynamicTrendChart(dailyRows, dayCount) {
   const ctx = document.getElementById('chart-pnl-trend').getContext('2d');
   if (state.charts.trend) state.charts.trend.destroy();
 
-  const labels = months;
-  const netSales = months.map((m) => map[m].net_sales);
-  const foodCostPct = months.map((m) => ((map[m].actual_cost_of_sales / map[m].net_sales) * 100).toFixed(1));
+  let labels = [];
+  let netSales = [];
+  let foodCostPct = [];
+
+  if (dayCount <= 45) {
+    // Daily granularity
+    const dayMap = {};
+    dailyRows.forEach((r) => {
+      const d = r.report_date;
+      if (!dayMap[d]) dayMap[d] = { net: 0, cost: 0 };
+      dayMap[d].net += Number(r.net_sales) || 0;
+      dayMap[d].cost += Number(r.cost_of_sales || r.actual_cost_of_sales) || 0;
+    });
+    const sortedDays = Object.keys(dayMap).sort();
+    labels = sortedDays.map((d) => d.substring(5)); // 'MM-DD'
+    netSales = sortedDays.map((d) => dayMap[d].net);
+    foodCostPct = sortedDays.map((d) => (dayMap[d].net ? ((dayMap[d].cost / dayMap[d].net) * 100).toFixed(1) : '0'));
+  } else {
+    // Monthly grouped granularity
+    const mCountMap = {};
+    dailyRows.forEach((r) => {
+      const m = r.report_month || r.report_date.substring(0, 7) + '-01';
+      if (!mCountMap[m]) mCountMap[m] = { net: 0, cost: 0 };
+      mCountMap[m].net += Number(r.net_sales) || 0;
+      mCountMap[m].cost += Number(r.cost_of_sales || r.actual_cost_of_sales) || 0;
+    });
+    const sortedMonths = Object.keys(mCountMap).sort();
+    labels = sortedMonths;
+    netSales = sortedMonths.map((m) => mCountMap[m].net);
+    foodCostPct = sortedMonths.map((m) => (mCountMap[m].net ? ((mCountMap[m].cost / mCountMap[m].net) * 100).toFixed(1) : '0'));
+  }
 
   state.charts.trend = new Chart(ctx, {
     type: 'bar',
@@ -401,9 +504,9 @@ function renderTrendChart(months, map) {
           data: foodCostPct,
           borderColor: '#FF5B5B',
           backgroundColor: '#FF5B5B',
-          borderWidth: 3,
-          pointRadius: 5,
-          pointHoverRadius: 7,
+          borderWidth: 2,
+          pointRadius: dayCount <= 20 ? 4 : 2,
+          pointHoverRadius: 6,
           pointBackgroundColor: '#FF5B5B',
           yAxisID: 'yPct',
         },
@@ -435,10 +538,10 @@ function renderTrendChart(months, map) {
         yPct: {
           type: 'linear',
           position: 'right',
-          min: 20,
-          max: 45,
           grid: { drawOnChartArea: false },
-          ticks: { color: '#FF5B5B', callback: (v) => v + '%' },
+          ticks: { color: '#7E8299', callback: (v) => v + '%' },
+          min: 0,
+          max: 50,
         },
       },
     },
@@ -551,8 +654,14 @@ function renderKpiTable(monthKey) {
 
 // TAB 2: COST CONTROL & VARIANCE
 function renderCostVariance() {
-  const varData = state.data.inventory_variance || [];
-  const wasteData = state.data.waste || [];
+  const varData = (state.data.inventory_variance || []).filter((r) => {
+    if (!state.dateRange.start || !state.dateRange.end) return true;
+    return r.period_start <= state.dateRange.end && r.period_end >= state.dateRange.start;
+  });
+  const wasteData = (state.data.waste || []).filter((r) => {
+    if (!state.dateRange.start || !state.dateRange.end) return true;
+    return r.waste_date >= state.dateRange.start && r.waste_date <= state.dateRange.end;
+  });
   const pnlMonthly = state.data.pnl_monthly || [];
 
   // 1. Top Unexplained Variance
@@ -699,8 +808,12 @@ function renderMenuEngineering() {
     filtered = filtered.filter((r) => r.category_name === state.selectedCategory);
   }
 
-  // Deduplicate menu items for latest month
-  const latestMonth = [...new Set(filtered.map((r) => r.report_month))].sort().pop();
+  // Deduplicate menu items for matching month in date range
+  const targetMonth = state.dateRange.end ? state.dateRange.end.substring(0, 7) + '-01' : null;
+  const availableMonths = [...new Set(filtered.map((r) => r.report_month))].sort();
+  const latestMonth = (targetMonth && availableMonths.includes(targetMonth))
+    ? targetMonth
+    : (availableMonths[availableMonths.length - 1] || '2026-05-01');
   const latestItems = filtered.filter((r) => r.report_month === latestMonth);
 
   const ctxMenu = document.getElementById('chart-menu-engineering').getContext('2d');
@@ -802,6 +915,9 @@ function renderChannels() {
   const chMap = {};
   channelData.forEach((r) => {
     if (state.selectedOutlet !== 'ALL' && r.outlet_id !== state.selectedOutlet) return;
+    if (state.dateRange.start && state.dateRange.end) {
+      if (r.order_date < state.dateRange.start || r.order_date > state.dateRange.end) return;
+    }
     const ch = r.channel_name || r.channel_code;
     if (!chMap[ch]) chMap[ch] = { sales: 0, comm: 0, contrib: 0, orders: 0 };
     chMap[ch].sales += Number(r.net_sales) || 0;
@@ -948,7 +1064,7 @@ function setupSimulator() {
 }
 
 function updateSimulator() {
-  const pnlMonthly = state.data.pnl_monthly || [];
+  const pnlSource = state.data.pnl_daily || state.data.pnl_monthly || [];
   let baseSales = 0,
     baseCogs = 0,
     baseWaste = 0,
@@ -956,8 +1072,11 @@ function updateSimulator() {
     baseOpex = 0,
     baseEbitda = 0;
 
-  pnlMonthly.forEach((r) => {
+  pnlSource.forEach((r) => {
     if (state.selectedOutlet !== 'ALL' && r.outlet_id !== state.selectedOutlet) return;
+    if (r.report_date && state.dateRange.start && state.dateRange.end) {
+      if (r.report_date < state.dateRange.start || r.report_date > state.dateRange.end) return;
+    }
     baseSales += Number(r.net_sales) || 0;
     baseCogs += Number(r.cogs_standard) || 0;
     baseWaste += Number(r.waste_cost) || 0;
