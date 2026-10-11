@@ -952,8 +952,8 @@ def cmd_purge(args):
             # 6. Hapus goods receipt lines & receipts
             conn.execute(
                 """delete from fnb.goods_receipt_lines
-                   where receipt_id in (
-                       select receipt_id from fnb.goods_receipts
+                   where gr_id in (
+                       select gr_id from fnb.goods_receipts
                        where (received_at at time zone 'Asia/Jakarta')::date < %s
                    )""",
                 (cutoff,),
@@ -965,8 +965,8 @@ def cmd_purge(args):
             # 7. Hapus stock count lines & counts
             conn.execute(
                 """delete from fnb.stock_count_lines
-                   where stock_count_id in (
-                       select stock_count_id from fnb.stock_counts
+                   where count_id in (
+                       select count_id from fnb.stock_counts
                        where count_date < %s
                    )""",
                 (cutoff,),

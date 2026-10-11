@@ -85,7 +85,7 @@ jobs:
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
           service_account: ${{ vars.SA_DBT }}
       - run: dbt deps
-      - run: dbt source freshness --target prod || true
+      - run: dbt source freshness --target prod
       - name: dbt build (full refresh mingguan tiap Senin dini hari, atau manual)
         run: |
           if [ "${{ inputs.full_refresh }}" = "true" ] || [ "$(TZ=Asia/Jakarta date +%u)" = "1" ]; then

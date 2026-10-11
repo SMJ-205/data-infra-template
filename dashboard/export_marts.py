@@ -191,6 +191,7 @@ EXPORTS = {
             units_sold,
             round(gross_sales, 0) as gross_sales,
             round(discounts, 0) as discounts,
+            round(refunds, 0) as refunds,
             round(net_sales, 0) as net_sales,
             round(cogs_standard, 0) as cogs_standard,
             round(gross_profit, 0) as gross_profit,

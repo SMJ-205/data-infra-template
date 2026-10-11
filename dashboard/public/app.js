@@ -45,6 +45,15 @@ const fmtRp = (v) => 'Rp\u00A0' + Math.round(Number(v) || 0).toLocaleString('id-
 const fmtRpCompact = (v) => `<span class="kpi-currency">Rp</span><span>${Math.round(Number(v) || 0).toLocaleString('id-ID')}</span>`;
 const fmtPct = (v) => (v === null || v === undefined || isNaN(v) ? '-' : Number(v).toFixed(1) + '%');
 const fmtNum = (v) => Math.round(Number(v) || 0).toLocaleString('id-ID');
+const escapeHtml = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
 
 const INGREDIENT_NAMES = {
   ING_ESPR: 'Espresso Beans',
@@ -223,7 +232,7 @@ function setupSidebarToggle() {
 function setupTabs() {
   const tabBtns = document.querySelectorAll('.tab-btn');
   tabBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       tabBtns.forEach((b) => b.classList.remove('active'));
       document.querySelectorAll('.tab-section').forEach((sec) => sec.classList.remove('active'));
 
@@ -233,7 +242,7 @@ function setupTabs() {
       const targetSec = document.getElementById(`sec-${tabId}`);
       if (targetSec) targetSec.classList.add('active');
 
-      renderActiveTab();
+      await renderActiveTab();
     });
   });
 }
@@ -324,43 +333,78 @@ function setupGlobalSearch() {
   }
 }
 
-// Data Fetching
+// Data Fetching & Lazy Loading Architecture
+const TAB_DATA_DEPENDENCIES = {
+  pnl: ['pnl_monthly', 'pnl_daily', 'kpi_status'],
+  cost: ['inventory_variance', 'waste'],
+  menu: ['menu_engineering'],
+  channel: ['channel_daily', 'orders_hourly'],
+  simulator: ['pnl_daily', 'category_daily'],
+  explorer: ['pnl_monthly'],
+};
+
+async function fetchFile(file) {
+  if (state.data[file]) return state.data[file];
+  const ver = state.meta && state.meta.generated_at_utc ? encodeURIComponent(state.meta.generated_at_utc) : Date.now();
+  try {
+    const res = await fetch(`data/${file}.json?v=${ver}`);
+    if (!res.ok) {
+      console.warn(`File ${file}.json status HTTP ${res.status}`);
+      state.data[file] = [];
+      return [];
+    }
+    const data = await res.json();
+    state.data[file] = data;
+    return data;
+  } catch (err) {
+    console.error(`Error loading ${file}.json:`, err);
+    state.data[file] = [];
+    return [];
+  }
+}
+
+async function ensureDataForTab(tabId) {
+  const deps = TAB_DATA_DEPENDENCIES[tabId] || [];
+  const missing = deps.filter((f) => !state.data[f]);
+  if (missing.length > 0) {
+    await Promise.all(missing.map((f) => fetchFile(f)));
+  }
+}
+
 async function loadData() {
   const badgeSync = document.getElementById('badge-sync');
   try {
     const metaRes = await fetch(`data/meta.json?t=${Date.now()}`);
+    if (!metaRes.ok) throw new Error(`meta.json HTTP ${metaRes.status}`);
     state.meta = await metaRes.json();
-    const ver = state.meta.generated_at_utc ? encodeURIComponent(state.meta.generated_at_utc) : Date.now();
     if (state.meta.generated_at_utc) {
       const date = new Date(state.meta.generated_at_utc);
       const dataThru = state.meta.data_through ? `Data s/d ${state.meta.data_through} • ` : '';
       badgeSync.textContent = `${dataThru}Sync: ${date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`;
     }
 
-    const files = [
-      'pnl_monthly',
-      'pnl_daily',
-      'kpi_status',
+    const totalRows = Object.values(state.meta.rows || {}).reduce((a, b) => a + b, 0);
+    document.getElementById('badge-records-count').textContent = `Total: ${fmtNum(totalRows)} baris (${state.meta.total_size_kb || 0} KB)`;
+
+    // 1. Muat hanya data esensial untuk Tab Utama (P&L) terlebih dahulu secara instan (<300ms)
+    const criticalFiles = ['pnl_daily', 'pnl_monthly', 'kpi_status'];
+    await Promise.all(criticalFiles.map((f) => fetchFile(f)));
+
+    populateFilters();
+    await renderActiveTab();
+
+    // 2. Prefetch sisa file di latar belakang agar siap ketika tab lain dibuka
+    const backgroundFiles = [
+      'category_daily',
       'menu_engineering',
       'inventory_variance',
       'waste',
       'channel_daily',
       'orders_hourly',
-      'category_daily',
     ];
-
-    await Promise.all(
-      files.map(async (file) => {
-        const res = await fetch(`data/${file}.json?v=${ver}`);
-        state.data[file] = await res.json();
-      })
-    );
-
-    const totalRows = Object.values(state.meta.rows || {}).reduce((a, b) => a + b, 0);
-    document.getElementById('badge-records-count').textContent = `Total: ${fmtNum(totalRows)} baris (${state.meta.total_size_kb || 0} KB)`;
-
-    populateFilters();
-    renderActiveTab();
+    setTimeout(() => {
+      Promise.all(backgroundFiles.map((f) => fetchFile(f))).catch((e) => console.warn('Background prefetch notice:', e));
+    }, 150);
   } catch (err) {
     console.error('Error loading data:', err);
     badgeSync.textContent = 'Gagal memuat data JSON';
@@ -408,7 +452,8 @@ function populateFilters() {
   applyDatePreset('MTD');
 }
 
-function renderActiveTab() {
+async function renderActiveTab() {
+  await ensureDataForTab(state.activeTab);
   switch (state.activeTab) {
     case 'pnl':
       renderPnlExecutive();
@@ -426,6 +471,7 @@ function renderActiveTab() {
       updateSimulator();
       break;
     case 'explorer':
+      await fetchFile(state.explorer.mart);
       renderExplorer();
       break;
   }
@@ -1063,20 +1109,20 @@ function renderKpiTable(monthKey) {
       const val = isPct ? fmtPct(r.metric_value) : fmtRp(r.metric_value);
       const th = isPct ? fmtPct(r.warn_threshold) : fmtRp(r.warn_threshold);
       const symbol = r.direction === 'higher_is_worse' ? '≤' : '≥';
-      const badgeCls = `badge-status-${r.status.toLowerCase()}`;
+      const badgeCls = `badge-status-${escapeHtml(r.status).toLowerCase()}`;
       return `
       <tr>
-        <td><strong>${r.metric_name}</strong></td>
-        <td>${val}</td>
-        <td>${symbol} ${th}</td>
-        <td><span class="badge-tag ${badgeCls}">${r.status}</span></td>
+        <td><strong>${escapeHtml(r.metric_name)}</strong></td>
+        <td>${escapeHtml(val)}</td>
+        <td>${escapeHtml(symbol)} ${escapeHtml(th)}</td>
+        <td><span class="badge-tag ${badgeCls}">${escapeHtml(r.status)}</span></td>
       </tr>
     `;
     })
     .join('');
 
   const scope = state.selectedOutlet === 'ALL' ? 'konsolidasi seluruh outlet' : `outlet ${state.selectedOutlet}`;
-  const note = `<tr><td colspan="4"><span class="data-note">Bulan ${monthKey.substring(0, 7)} (${scope}).${
+  const note = `<tr><td colspan="4"><span class="data-note">Bulan ${escapeHtml(monthKey.substring(0, 7))} (${escapeHtml(scope)}).${
     isComplete ? '' : ' Bulan berjalan belum lengkap: Prime Cost belum memuat Labor bila alokasi opex bulan ini belum tersedia.'
   }</span></td></tr>`;
   tbody.innerHTML = rowsHtml + note;
@@ -1390,16 +1436,16 @@ function renderMenuEngineering() {
   tbody.innerHTML = latestItems
     .sort((a, b) => (Number(b.qty_sold) || 0) - (Number(a.qty_sold) || 0))
     .map((r) => {
-      const badgeCls = `badge-${r.menu_class.toLowerCase()}`;
+      const badgeCls = `badge-${escapeHtml(r.menu_class).toLowerCase()}`;
       return `
       <tr>
-        <td><strong>${r.menu_name}</strong></td>
-        <td>${r.category_name}</td>
-        <td><span class="badge-tag ${badgeCls}">${r.menu_class}</span></td>
+        <td><strong>${escapeHtml(r.menu_name)}</strong></td>
+        <td>${escapeHtml(r.category_name)}</td>
+        <td><span class="badge-tag ${badgeCls}">${escapeHtml(r.menu_class)}</span></td>
         <td>${fmtNum(r.qty_sold)}</td>
         <td>${(Number(r.menu_mix_pct) * 100).toFixed(1)}%</td>
         <td>${fmtRp(r.avg_contribution_margin)}</td>
-        <td style="color: var(--text-muted); font-size: 12px;">${strategyRec[r.menu_class]}</td>
+        <td style="color: var(--text-muted); font-size: 12px;">${escapeHtml(strategyRec[r.menu_class] || '')}</td>
       </tr>
     `;
     })
@@ -1538,7 +1584,7 @@ function renderHeatmap(data) {
         }
       }
 
-      html += `<div class="heatmap-cell" style="background:${bg}; color:${color};" title="${dayName} jam ${h}:00 - ${fmtNum(count)} order">${count > 0 ? fmtNum(count) : '-'}</div>`;
+      html += `<div class="heatmap-cell" style="background:${bg}; color:${color};" title="${escapeHtml(dayName)} jam ${h}:00 - ${fmtNum(count)} order">${count > 0 ? fmtNum(count) : '-'}</div>`;
     }
   });
 
@@ -1679,9 +1725,10 @@ function getFilteredExplorerRows() {
 }
 
 function setupExplorer() {
-  document.getElementById('select-explorer-mart').addEventListener('change', (e) => {
+  document.getElementById('select-explorer-mart').addEventListener('change', async (e) => {
     state.explorer.mart = e.target.value;
     state.explorer.page = 1;
+    await fetchFile(state.explorer.mart);
     renderExplorer();
   });
 
@@ -1735,14 +1782,14 @@ function renderExplorer() {
   if (btnNext) btnNext.disabled = state.explorer.page >= maxPage;
 
   const cols = Object.keys(filtered[0]);
-  thead.innerHTML = `<tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr>`;
+  thead.innerHTML = `<tr>${cols.map((c) => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
 
   const start = (state.explorer.page - 1) * state.explorer.pageSize;
   const end = Math.min(start + state.explorer.pageSize, total);
   const pagedRows = filtered.slice(start, end);
 
   tbody.innerHTML = pagedRows
-    .map((r) => `<tr>${cols.map((c) => `<td>${r[c] !== null && r[c] !== undefined ? r[c] : '-'}</td>`).join('')}</tr>`)
+    .map((r) => `<tr>${cols.map((c) => `<td>${r[c] !== null && r[c] !== undefined ? escapeHtml(r[c]) : '-'}</td>`).join('')}</tr>`)
     .join('');
 
   document.getElementById('explorer-pagination-info').textContent = `Menampilkan ${start + 1}–${end} dari ${fmtNum(total)} baris (Hal ${state.explorer.page}/${maxPage})`;
