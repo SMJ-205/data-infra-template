@@ -72,41 +72,93 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* App Container */
-.app-container {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 24px 32px 48px;
+/* ==========================================================================
+   Dashboard Shell & Layout
+   ========================================================================== */
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-app);
 }
 
 /* ==========================================================================
-   Header & Brand
+   Sidebar Navigation & Control Center
    ========================================================================== */
-.app-header {
-  margin-bottom: 20px;
+.dashboard-sidebar {
+  width: 290px;
+  min-width: 290px;
+  background: #FFFFFF;
+  border-right: 1px solid var(--border-light);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  box-shadow: 1px 0 10px rgba(0, 0, 0, 0.02);
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.header-top {
+/* Collapsed / Minimalist State */
+.dashboard-sidebar.collapsed {
+  width: 70px;
+  min-width: 70px;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
+  min-height: 52px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
-.brand-wrapper {
+.sidebar-brand-wrapper {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.brand-logo-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 8px;
+  background: var(--brand-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  box-shadow: var(--brand-yellow-glow);
+}
+
+.brand-logo-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: #FFFFFF;
+}
+
+.sidebar-brand-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.dashboard-sidebar.collapsed .sidebar-brand-text {
+  display: none;
 }
 
 .brand-title {
-  font-size: 30px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--text-title);
-  display: flex;
-  align-items: center;
   line-height: 1;
 }
 
@@ -115,263 +167,420 @@ body {
 }
 
 .brand-badge {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 4px 10px;
+  letter-spacing: 0.05em;
+  padding: 2.5px 6px;
   border-radius: var(--radius-pill);
   background: var(--brand-yellow-light);
   color: #B47D00;
-  margin-left: 10px;
-  vertical-align: middle;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.pill-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 14px;
-  border-radius: var(--radius-pill);
-  background: var(--bg-card);
+.btn-toggle-sidebar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--bg-input);
   border: 1px solid var(--border-light);
-  color: var(--text-body);
-  text-decoration: none;
-  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
   transition: var(--transition);
-}
-
-.pill-badge:hover {
-  border-color: var(--brand-yellow);
-  color: var(--text-title);
-  transform: translateY(-1px);
-}
-
-/* ==========================================================================
-   Hero Promotional / Intelligence Banner
-   ========================================================================== */
-.gomeal-hero-banner {
-  background: var(--brand-gradient);
-  border-radius: var(--radius-lg);
-  padding: 18px 24px;
-  color: #FFFFFF;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: var(--brand-yellow-glow);
-}
-
-.gomeal-hero-banner::after {
-  content: '';
-  position: absolute;
-  top: -40%;
-  right: -10%;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  pointer-events: none;
-}
-
-.hero-banner-text {
-  flex: 1 1 340px;
-  min-width: 260px;
-}
-
-.hero-banner-text h2 {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 4px;
-}
-
-.hero-banner-text p {
-  font-size: 12.5px;
-  font-weight: 500;
-  opacity: 0.95;
-  max-width: 520px;
-}
-
-/* Category Filters inside Hero Orange Box */
-.hero-category-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  align-items: center;
-  max-width: 720px;
-  margin-bottom: 0;
   padding: 0;
-  overflow: visible;
-  position: relative;
-  z-index: 2;
+  flex-shrink: 0;
 }
 
-.hero-category-row .category-pill-card {
-  background: rgba(255, 255, 255, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: var(--radius-pill);
-  padding: 8px 14px;
-  color: #FFFFFF;
-  font-size: 12.5px;
-  font-weight: 700;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  transition: var(--transition);
+.btn-toggle-sidebar:hover {
+  background: var(--brand-yellow-light);
+  color: var(--text-title);
+  border-color: rgba(248, 182, 2, 0.4);
 }
 
-.hero-category-row .category-pill-card .cat-svg {
-  stroke: #FFFFFF;
+.toggle-icon-svg {
   width: 15px;
   height: 15px;
+  transition: transform 0.25s ease;
 }
 
-.hero-category-row .category-pill-card:hover,
-.hero-category-row .category-pill-card.active {
-  background: #FFFFFF;
-  color: #8C5400;
-  border-color: #FFFFFF;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  transform: translateY(-2px);
+.dashboard-sidebar.collapsed .sidebar-header .btn-toggle-sidebar .toggle-icon-svg {
+  transform: rotate(180deg);
 }
 
-.hero-category-row .category-pill-card:hover .cat-svg,
-.hero-category-row .category-pill-card.active .cat-svg {
-  stroke: #8C5400;
+.dashboard-sidebar.collapsed .sidebar-header {
+  padding: 16px 10px;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* ==========================================================================
-   Global Controls Bar
-   ========================================================================== */
-.controls-bar {
+/* Sidebar Body */
+.sidebar-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  background: var(--bg-card);
-  padding: 12px 18px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-card);
-  margin-bottom: 20px;
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.filter-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-title);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.filter-select {
-  background: var(--bg-input);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-pill);
-  color: var(--text-title);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 14px;
-  outline: none;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.filter-select:focus {
-  border-color: var(--brand-yellow);
-  background: #FFFFFF;
-  box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
-}
-
-.date-range-wrapper {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
+  scrollbar-width: thin;
+  min-height: 0;
 }
 
-.filter-input-date {
-  background: var(--bg-input);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-pill);
-  color: var(--text-title);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 12px;
-  outline: none;
-  cursor: pointer;
-  transition: var(--transition);
+.sidebar-body::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-body::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
 }
 
-.filter-input-date:focus {
-  border-color: var(--brand-yellow);
-  background: #FFFFFF;
-  box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
+/* Hero Mini Card */
+.sidebar-hero-card {
+  background: var(--brand-gradient);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #FFFFFF;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(248, 182, 2, 0.25);
+  transition: all 0.25s ease;
+  flex-shrink: 0;
 }
 
-.date-sep {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-}
-
-/* ==========================================================================
-   Navigation Tabs (Clean Pill Style, No Emojis)
-   ========================================================================== */
-.nav-tabs {
-  display: flex;
-  gap: 8px;
-  background: var(--bg-card);
-  padding: 6px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 20px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.nav-tabs::-webkit-scrollbar {
+.dashboard-sidebar.collapsed .sidebar-hero-card {
   display: none;
 }
 
+.sidebar-hero-card h3 {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 1px;
+}
+
+.sidebar-hero-card p {
+  font-size: 10px;
+  opacity: 0.92;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+/* Sidebar Sections */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.sidebar-section-title {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 1px;
+}
+
+.section-icon-svg {
+  width: 12px;
+  height: 12px;
+  stroke: var(--brand-yellow);
+}
+
+.dashboard-sidebar.collapsed .sidebar-section-title {
+  display: none;
+}
+
+.sidebar-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashboard-sidebar.collapsed .sidebar-control-group {
+  display: none;
+}
+
+.sidebar-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.sidebar-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--text-title);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4.5px 8px;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+  width: 100%;
+}
+
+.sidebar-select:focus {
+  border-color: var(--brand-yellow);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
+}
+
+.sidebar-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-input-date {
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--text-title);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3.5px 6px;
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+  transition: var(--transition);
+}
+
+.sidebar-input-date:focus {
+  border-color: var(--brand-yellow);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(248, 182, 2, 0.15);
+}
+
+/* Category Vertical List in Sidebar */
+.sidebar-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dashboard-sidebar.collapsed .sidebar-category-list {
+  align-items: center;
+  gap: 6px;
+}
+
+.category-pill-card {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--text-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+}
+
+.category-pill-card .cat-svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--text-muted);
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.category-pill-card:hover {
+  background: var(--brand-yellow-light);
+  border-color: rgba(248, 182, 2, 0.35);
+  color: var(--text-title);
+}
+
+.category-pill-card:hover .cat-svg {
+  stroke: var(--brand-yellow);
+}
+
+.category-pill-card.active {
+  background: #FFF8E6;
+  border-color: var(--brand-yellow);
+  color: #8C5400;
+  box-shadow: 0 2px 8px rgba(248, 182, 2, 0.18);
+}
+
+.category-pill-card.active .cat-svg {
+  stroke: #8C5400;
+}
+
+/* Collapsed category card */
+.dashboard-sidebar.collapsed .category-pill-card {
+  padding: 10px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.dashboard-sidebar.collapsed .category-pill-card .cat-label {
+  display: none;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-light);
+  background: #FAFBFD;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.dashboard-sidebar.collapsed .sidebar-footer {
+  display: none;
+}
+
+.sidebar-meta-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-pill-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: #FFFFFF;
+  padding: 2.5px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-light);
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-meta-links {
+  display: flex;
+  gap: 6px;
+}
+
+.sidebar-meta-link {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  background: #FFF9F2;
+  border: 1px solid rgba(250, 139, 12, 0.22);
+  color: #D96B00;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.sidebar-meta-link svg {
+  stroke: #D96B00;
+  transition: var(--transition);
+}
+
+.sidebar-meta-link:hover {
+  background: var(--brand-gradient);
+  border-color: #FA8B0C;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(250, 139, 12, 0.25);
+  transform: translateY(-1px);
+}
+
+.sidebar-meta-link:hover svg {
+  stroke: #FFFFFF;
+}
+
+/* ==========================================================================
+   Main Dashboard Area & Header
+   ========================================================================== */
+.dashboard-main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-app);
+}
+
+.main-header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  background: rgba(246, 247, 251, 0.95);
+  backdrop-filter: blur(12px);
+  padding: 10px 24px;
+  border-bottom: 1px solid rgba(239, 240, 246, 0.85);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-toggle {
+  display: none;
+  flex-shrink: 0;
+}
+
+.dashboard-sidebar.collapsed ~ .dashboard-main-area .topbar-toggle {
+  display: flex;
+}
+
+.dashboard-content {
+  padding: 20px 28px 48px;
+  flex: 1;
+}
+
+/* ==========================================================================
+   Navigation Tabs (Clean Pill Style, No Emojis, Fully Adaptive)
+   ========================================================================== */
+.nav-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  gap: 6px;
+  background: var(--bg-card);
+  padding: 4px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
 .tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 9px 18px;
+  padding: 7px 6px;
   border-radius: var(--radius-pill);
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 4px;
   transition: var(--transition);
   white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .tab-btn:hover {
@@ -386,85 +595,28 @@ body {
 }
 
 /* ==========================================================================
-   Category Row (Inline Theme SVG Icons)
-   ========================================================================== */
-.category-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  overflow-x: auto;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 2px;
-  padding-right: 2px;
-  scrollbar-width: none;
-}
-
-.category-row::-webkit-scrollbar {
-  display: none;
-}
-
-.category-pill-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: var(--transition);
-  white-space: nowrap;
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--text-title);
-}
-
-.cat-svg {
-  width: 17px;
-  height: 17px;
-  stroke: var(--brand-yellow);
-  flex-shrink: 0;
-  transition: var(--transition);
-}
-
-.category-pill-card:hover, .category-pill-card.active {
-  border-color: var(--brand-yellow);
-  background: var(--brand-yellow-light);
-  color: #8C6000;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(248, 182, 2, 0.2);
-}
-
-.category-pill-card:hover .cat-svg,
-.category-pill-card.active .cat-svg {
-  stroke: #8C6000;
-}
-
-/* ==========================================================================
    KPI Cards Grid (Compact Single-Row Values, No Wrap)
    ========================================================================== */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
   margin-bottom: 22px;
 }
 
-@media (max-width: 1320px) {
+@media (min-width: 1800px) {
   .kpi-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 580px) {
   .kpi-grid {
     grid-template-columns: 1fr;
   }
@@ -474,11 +626,10 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: 16px 18px;
   box-shadow: var(--shadow-card);
   transition: var(--transition);
   position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -495,22 +646,22 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 8px;
-  gap: 5px;
+  margin-bottom: 6px;
+  gap: 4px;
   width: 100%;
 }
 
 .kpi-title {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
   white-space: normal;
   line-height: 1.35;
-  min-height: 28px;
+  min-height: 24px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   text-align: center;
   width: 100%;
@@ -520,19 +671,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
   min-height: 22px;
   width: 100%;
 }
 
 .kpi-value {
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-title);
   margin-bottom: 6px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -552,12 +703,13 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 2px 7px;
+  gap: 4px;
+  padding: 2.5px 8px;
   border-radius: var(--radius-pill);
   width: fit-content;
+  max-width: 100%;
   white-space: nowrap;
-  margin: 0 auto;
+  margin: 2px auto;
 }
 
 .kpi-delta.good {
@@ -576,13 +728,12 @@ body {
 }
 
 .kpi-subtext {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--text-muted);
   margin-top: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  line-height: 1.4;
   text-align: center;
   width: 100%;
 }
@@ -880,6 +1031,35 @@ input[type="range"] {
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Disclaimer / data notes */
+.data-note {
+  display: block;
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #8C5400;
+  background: #FFF9F2;
+  border-left: 3px solid #FA8B0C;
+  border-radius: 4px;
+}
+
+.data-note-wide {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.data-note-compact {
+  font-size: 10px;
+  padding: 4px 8px;
+  margin-top: 2px;
+}
+
+.dashboard-sidebar.collapsed .data-note {
+  display: none;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -894,24 +1074,31 @@ input[type="range"] {
 /* ==========================================================================
    Responsive
    ========================================================================== */
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
 @media (max-width: 992px) {
-  .app-container {
-    padding: 16px 18px;
+  .dashboard-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
   }
-  .gomeal-hero-banner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
+  .dashboard-sidebar.mobile-open {
+    transform: translateX(0);
   }
-  .hero-category-row {
-    justify-content: flex-start;
-    max-width: 100%;
+  .topbar-toggle {
+    display: flex;
+  }
+  .dashboard-content {
+    padding: 16px 16px 40px;
+  }
+  .main-header {
+    padding: 10px 16px;
   }
   .chart-panel-row {
     grid-template-columns: 1fr;
-  }
-  .controls-bar {
-    flex-direction: column;
-    align-items: stretch;
   }
 }

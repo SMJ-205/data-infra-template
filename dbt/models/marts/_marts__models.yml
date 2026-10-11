@@ -69,3 +69,11 @@ models:
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [outlet_id, channel_code, day_of_week_num, order_hour_local]
+
+  - name: mart_category_performance_daily
+    description: Kinerja harian per kategori produk (net sales, cogs, gross margin, unit sold) untuk analisis kontribusi kategori.
+    config:
+      tags: ["sales", "finance", "daily", "mart"]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [report_date, outlet_id, category_name]

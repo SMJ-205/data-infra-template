@@ -15,149 +15,195 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=20261011_3">
+  <link rel="stylesheet" href="style.css?v=20261011_sidebar">
 </head>
 <body>
-  <div class="app-container">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-top">
-        <div class="brand-wrapper">
-          <h1 class="brand-title">
-            Nge-Meal<span class="brand-dot">.</span>
+  <div class="dashboard-layout">
+    <!-- Collapsible Sidebar -->
+    <aside class="dashboard-sidebar" id="dashboard-sidebar">
+      <!-- Sidebar Header / Brand -->
+      <div class="sidebar-header">
+        <div class="sidebar-brand-wrapper">
+          <div class="brand-logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+              <line x1="6" y1="1" x2="6" y2="4"></line>
+              <line x1="10" y1="1" x2="10" y2="4"></line>
+              <line x1="14" y1="1" x2="14" y2="4"></line>
+            </svg>
+          </div>
+          <div class="sidebar-brand-text">
+            <h1 class="brand-title">
+              Nge-Meal<span class="brand-dot">.</span>
+            </h1>
             <span class="brand-badge">DASHBOARD</span>
-          </h1>
+          </div>
+        </div>
+        <button class="btn-toggle-sidebar" id="sidebar-toggle-btn" title="Kecilkan / Perlebar Sidebar" aria-label="Toggle Sidebar">
+          <svg class="toggle-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Scrollable Sidebar Body -->
+      <div class="sidebar-body">
+        <!-- Orange Intelligence Mini-Banner -->
+        <div class="sidebar-hero-card">
+          <div class="sidebar-hero-text">
+            <h3>Executive Cost Control</h3>
+            <p>Multi-Outlet Performance Intelligence</p>
+          </div>
         </div>
 
-        <div class="header-actions">
-          <span class="pill-badge" id="badge-sync">
-            Sync: Memuat data...
-          </span>
-          <a href="https://github.com/SMJ-205/data-infra-template" target="_blank" rel="noopener" class="pill-badge" id="btn-github">
-            GitHub Repo
+        <!-- Filter Section: Outlet & Periode -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">
+            <svg class="section-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <span>KONTROL OUTLET &amp; WAKTU</span>
+          </div>
+
+          <div class="sidebar-control-group">
+            <label class="sidebar-label" for="select-outlet">Outlet</label>
+            <select id="select-outlet" class="sidebar-select">
+              <option value="ALL">Semua Outlet (Konsolidasi)</option>
+            </select>
+          </div>
+
+          <div class="sidebar-control-group">
+            <label class="sidebar-label" for="select-date-preset">Preset Periode</label>
+            <select id="select-date-preset" class="sidebar-select">
+              <option value="ALL">Semua Data (Trailing)</option>
+              <option value="MTD" selected>Bulan Terakhir (MTD)</option>
+              <option value="LAST_30">30 Hari Terakhir</option>
+              <option value="LAST_7">7 Hari Terakhir</option>
+              <option value="CUSTOM">Custom Rentang Tanggal</option>
+            </select>
+          </div>
+
+          <div class="sidebar-control-group" id="date-range-wrapper">
+            <label class="sidebar-label">Rentang Tanggal</label>
+            <div class="sidebar-date-inputs">
+              <input type="date" id="input-start-date" class="sidebar-input-date" aria-label="Tanggal Mulai">
+              <span class="date-sep">s/d</span>
+              <input type="date" id="input-end-date" class="sidebar-input-date" aria-label="Tanggal Selesai">
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Section: Kategori Menu -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">
+            <svg class="section-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>KATEGORI MENU</span>
+          </div>
+
+          <div class="sidebar-category-list">
+            <div class="category-pill-card active" data-cat="ALL" title="Semua Kategori">
+              <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+              </svg>
+              <span class="cat-label">Semua Kategori</span>
+            </div>
+
+            <div class="category-pill-card" data-cat="Beverage" title="Beverage & Coffee">
+              <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                <line x1="6" y1="1" x2="6" y2="4"></line>
+                <line x1="10" y1="1" x2="10" y2="4"></line>
+                <line x1="14" y1="1" x2="14" y2="4"></line>
+              </svg>
+              <span class="cat-label">Beverage &amp; Coffee</span>
+            </div>
+
+            <div class="category-pill-card" data-cat="Food" title="Main Course">
+              <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 11h16a1 1 0 0 0 1-1 7 7 0 0 0-14 0 1 1 0 0 0 1 1z"></path>
+                <path d="M4 15h16a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2z"></path>
+                <line x1="2" y1="13" x2="22" y2="13"></line>
+              </svg>
+              <span class="cat-label">Main Course</span>
+            </div>
+
+            <div class="category-pill-card" data-cat="Bakery" title="Bakery & Pastry">
+              <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"></path>
+                <line x1="6" y1="17" x2="18" y2="17"></line>
+              </svg>
+              <span class="cat-label">Bakery &amp; Pastry</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <div class="sidebar-meta-badges">
+          <span class="sidebar-pill-badge" id="badge-records-count">Total Data: Memuat...</span>
+          <span class="sidebar-pill-badge" id="badge-sync">Sync: Memuat data...</span>
+        </div>
+        <div class="sidebar-meta-links">
+          <a href="https://github.com/SMJ-205/data-infra-template" target="_blank" rel="noopener" class="sidebar-meta-link" id="btn-github">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+            <span>GitHub Repo</span>
           </a>
-          <a href="data/meta.json" target="_blank" rel="noopener" class="pill-badge" id="btn-marts-json">
-            Marts JSON
+          <a href="data/meta.json" target="_blank" rel="noopener" class="sidebar-meta-link" id="btn-marts-json">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <span>Marts JSON</span>
           </a>
         </div>
       </div>
-    </header>
+    </aside>
 
-    <!-- Hero Promotional / Intelligence Banner with Integrated Category Filters -->
-    <div class="gomeal-hero-banner">
-      <div class="hero-banner-text">
-        <h2>Executive Cost Control &amp; Multi-Outlet Performance</h2>
-        <p>BOM Recipe Explosion · Rekonsiliasi Selisih Stock Opname · Matriks Kasavana-Smith</p>
-      </div>
+    <!-- Main Content Area -->
+    <div class="dashboard-main-area">
+      <!-- Main Header with Mobile/Topbar Toggle & Nav Tabs -->
+      <header class="main-header">
+        <button class="btn-toggle-sidebar topbar-toggle" id="topbar-toggle-btn" title="Buka / Tutup Sidebar" aria-label="Toggle Sidebar">
+          <svg class="toggle-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
 
-      <!-- Quick Food Categories Filter (Inside Orange Box) -->
-      <div class="category-row hero-category-row">
-        <div class="category-pill-card active" data-cat="ALL">
-          <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-          </svg>
-          Semua Kategori
-        </div>
-        <div class="category-pill-card" data-cat="Beverage">
-          <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-            <line x1="6" y1="1" x2="6" y2="4"></line>
-            <line x1="10" y1="1" x2="10" y2="4"></line>
-            <line x1="14" y1="1" x2="14" y2="4"></line>
-          </svg>
-          Beverage &amp; Coffee
-        </div>
-        <div class="category-pill-card" data-cat="Food">
-          <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 11h16a1 1 0 0 0 1-1 7 7 0 0 0-14 0 1 1 0 0 0 1 1z"></path>
-            <path d="M4 15h16a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2z"></path>
-            <line x1="2" y1="13" x2="22" y2="13"></line>
-          </svg>
-          Burger &amp; Rice Meals
-        </div>
-        <div class="category-pill-card" data-cat="Bakery">
-          <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"></path>
-            <line x1="6" y1="17" x2="18" y2="17"></line>
-          </svg>
-          Bakery &amp; Pastry
-        </div>
-        <div class="category-pill-card" data-cat="Snacks">
-          <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8l-2 12H8L6 8"></path>
-            <path d="M4 8h16"></path>
-            <line x1="9" y1="4" x2="10" y2="8"></line>
-            <line x1="12" y1="3" x2="12" y2="8"></line>
-            <line x1="15" y1="4" x2="14" y2="8"></line>
-          </svg>
-          Sides &amp; Appetizers
-        </div>
-        <div class="category-pill-card" data-cat="Online">
-          <svg class="cat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="18.5" cy="17.5" r="3.5"></circle>
-            <circle cx="5.5" cy="17.5" r="3.5"></circle>
-            <path d="M15 6h-4l-3 7h11l-2-7z"></path>
-            <path d="M9 13l2-7"></path>
-          </svg>
-          Online Delivery
-        </div>
-      </div>
-    </div>
+        <!-- Navigation Tabs (Clean text, No emojis) -->
+        <nav class="nav-tabs" id="nav-tabs" aria-label="Dashboard Navigation">
+          <button class="tab-btn active" data-tab="pnl" id="tab-btn-pnl">
+            Executive P&amp;L
+          </button>
+          <button class="tab-btn" data-tab="cost" id="tab-btn-cost">
+            Cost Control &amp; Variance
+          </button>
+          <button class="tab-btn" data-tab="menu" id="tab-btn-menu">
+            Menu Engineering
+          </button>
+          <button class="tab-btn" data-tab="channel" id="tab-btn-channel">
+            Kanal Penjualan &amp; Heatmap
+          </button>
+          <button class="tab-btn" data-tab="simulator" id="tab-btn-simulator">
+            What-If Margin Simulator
+          </button>
+          <button class="tab-btn" data-tab="explorer" id="tab-btn-explorer">
+            Marts Data Explorer
+          </button>
+        </nav>
+      </header>
 
-    <!-- Global Controls -->
-    <div class="controls-bar" id="controls-bar">
-      <div class="filter-group">
-        <span class="filter-label">Outlet:</span>
-        <select id="select-outlet" class="filter-select">
-          <option value="ALL">Semua Outlet (Konsolidasi)</option>
-        </select>
-        
-        <span class="filter-label">Preset:</span>
-        <select id="select-date-preset" class="filter-select">
-          <option value="ALL">Semua Data (Trailing)</option>
-          <option value="MTD" selected>Bulan Terakhir (MTD)</option>
-          <option value="LAST_30">30 Hari Terakhir</option>
-          <option value="LAST_7">7 Hari Terakhir</option>
-          <option value="CUSTOM">Custom Rentang Tanggal</option>
-        </select>
-
-        <div class="date-range-wrapper" id="date-range-wrapper">
-          <span class="filter-label">Rentang:</span>
-          <input type="date" id="input-start-date" class="filter-input-date" aria-label="Tanggal Mulai">
-          <span class="date-sep">s/d</span>
-          <input type="date" id="input-end-date" class="filter-input-date" aria-label="Tanggal Selesai">
-        </div>
-      </div>
-      <div class="filter-group">
-        <span class="pill-badge" id="badge-records-count">Total Data: Memuat...</span>
-      </div>
-    </div>
-
-    <!-- Navigation Tabs (Clean text, No emojis) -->
-    <nav class="nav-tabs" id="nav-tabs" aria-label="Dashboard Navigation">
-      <button class="tab-btn active" data-tab="pnl" id="tab-btn-pnl">
-        Executive P&amp;L
-      </button>
-      <button class="tab-btn" data-tab="cost" id="tab-btn-cost">
-        Cost Control &amp; Variance
-      </button>
-      <button class="tab-btn" data-tab="menu" id="tab-btn-menu">
-        Menu Engineering (Kasavana-Smith)
-      </button>
-      <button class="tab-btn" data-tab="channel" id="tab-btn-channel">
-        Kanal Penjualan &amp; Heatmap
-      </button>
-      <button class="tab-btn" data-tab="simulator" id="tab-btn-simulator">
-        What-If Margin Simulator
-      </button>
-      <button class="tab-btn" data-tab="explorer" id="tab-btn-explorer">
-        Marts Data Explorer
-      </button>
-    </nav>
+      <!-- Main Tab Sections Container -->
+      <main class="dashboard-content">
 
     <!-- TAB 1: EXECUTIVE P&L -->
     <section class="tab-section active" id="sec-pnl">
@@ -196,7 +242,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Status KPI Bulanan vs Target Threshold</h2>
-              <p class="panel-desc">Threshold guardrail dievaluasi otomatis dari model mart_kpi_monthly_status</p>
+              <p class="panel-desc">Threshold guardrail dievaluasi otomatis dari model mart_kpi_monthly_status. Saat "Semua Outlet", nilai dihitung ulang dari total konsolidasi bulan terkait.</p>
             </div>
           </div>
           <div class="table-container">
@@ -234,6 +280,7 @@
             <div>
               <h2 class="panel-title">Top 10 Bahan: Unexplained Variance (Rp)</h2>
               <p class="panel-desc">Selisih pemakaian aktual (Stok Awal + Masuk - Akhir) vs Pemakaian Teoritis Penjualan &amp; Waste</p>
+              <span class="data-note">Nilai selisih diabsolutkan: surplus dan shortage dijumlahkan sebagai selisih opname. Mengikuti filter outlet &amp; tanggal.</span>
             </div>
           </div>
           <div class="chart-wrapper">
@@ -260,6 +307,7 @@
             <div>
               <h2 class="panel-title">Theoretical vs Actual Food Cost % Trajectory</h2>
               <p class="panel-desc">Gap antara COGS teoritis resep vs realisasi aktual setelah memperhitungkan stock shrinkage</p>
+              <span class="data-note">Menampilkan seluruh bulan (tidak mengikuti rentang tanggal); bulan berjalan masih parsial. Mengikuti filter outlet.</span>
             </div>
           </div>
           <div class="chart-wrapper">
@@ -282,12 +330,13 @@
                 <strong>Puzzle</strong> (Kurang Populer, Untung Tinggi) · 
                 <strong>Dog</strong> (Kurang Populer, Untung Rendah)
               </p>
+              <span class="data-note">Data per bulan: memakai bulan dari tanggal akhir rentang (tanggal awal tidak berpengaruh). Mengikuti filter outlet &amp; kategori.</span>
             </div>
             <div class="panel-actions">
               <select id="select-menu-category" class="filter-select">
                 <option value="ALL">Semua Kategori Menu</option>
-                <option value="Beverage">Beverage</option>
-                <option value="Food">Food</option>
+                <option value="Beverage">Beverage (Coffee, Tea, Non-Coffee)</option>
+                <option value="Food">Main Course</option>
                 <option value="Bakery">Bakery</option>
               </select>
             </div>
@@ -360,6 +409,7 @@
             <div>
               <h2 class="panel-title">Heatmap Jam &amp; Hari Pemesanan (Peak Hour Traffic)</h2>
               <p class="panel-desc">Intensitas frekuensi order per jam lokal (WIB) untuk optimasi alokasi shift staf outlet</p>
+              <span class="data-note">Akumulasi seluruh periode data; tidak mengikuti filter tanggal. Mengikuti filter outlet.</span>
             </div>
           </div>
           <div class="heatmap-container" id="orders-heatmap">
@@ -443,6 +493,7 @@
               <option value="waste">mart_waste_analysis</option>
               <option value="channel_daily">mart_channel_performance_daily</option>
               <option value="orders_hourly">mart_orders_hourly</option>
+              <option value="category_daily">mart_category_performance_daily</option>
               <option value="kpi_status">mart_kpi_monthly_status</option>
             </select>
             <input type="text" id="input-explorer-search" placeholder="Cari baris..." class="filter-select" style="min-width: 180px;">
@@ -463,10 +514,11 @@
           </div>
         </div>
       </div>
-    </section>
+      </main>
+    </div>
   </div>
 
   <!-- Main JavaScript App -->
-  <script src="app.js?v=20261011_2"></script>
+  <script src="app.js?v=20261011_cat_pnl"></script>
 </body>
 </html>

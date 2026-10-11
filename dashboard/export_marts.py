@@ -55,6 +55,23 @@ EXPORTS = {
         order by order_date, outlet_id, channel_code
     """,
     "orders_hourly": "select * from `{p}.marts.mart_orders_hourly` order by outlet_id, channel_code, day_of_week_num, order_hour_local",
+    "category_daily": """
+        select
+            report_date,
+            outlet_id,
+            category_name,
+            line_count,
+            units_sold,
+            round(gross_sales, 0) as gross_sales,
+            round(discounts, 0) as discounts,
+            round(net_sales, 0) as net_sales,
+            round(cogs_standard, 0) as cogs_standard,
+            round(gross_profit, 0) as gross_profit,
+            food_cost_pct,
+            gross_margin_pct
+        from `{p}.marts.mart_category_performance_daily`
+        order by report_date, outlet_id, category_name
+    """,
 }
 
 

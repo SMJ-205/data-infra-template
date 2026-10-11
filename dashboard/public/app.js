@@ -72,6 +72,19 @@ const INGREDIENT_NAMES = {
   PRP_RICE_CKD: 'Cooked Rice',
 };
 
+// Pemetaan pill kategori sidebar -> category_name sebenarnya di mart_menu_engineering
+const CATEGORY_MAP = {
+  Beverage: ['Coffee', 'Tea', 'Non-Coffee'],
+  Food: ['Main Course'],
+  Bakery: ['Bakery'],
+};
+
+function syncCategoryPills(cat) {
+  document.querySelectorAll('.category-pill-card').forEach((p) => {
+    p.classList.toggle('active', p.getAttribute('data-cat') === cat);
+  });
+}
+
 function dateAddDays(dateStr, days) {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
@@ -114,6 +127,7 @@ function applyDatePreset(preset) {
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', async () => {
+  setupSidebarToggle();
   setupTabs();
   setupFilterListeners();
   setupCategoryPills();
@@ -122,6 +136,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupExplorer();
   await loadData();
 });
+
+function setupSidebarToggle() {
+  const sidebar = document.getElementById('dashboard-sidebar');
+  const toggleBtns = document.querySelectorAll('.btn-toggle-sidebar');
+  if (!sidebar) return;
+
+  const isCollapsed = localStorage.getItem('dashboard_sidebar_collapsed') === 'true';
+  if (isCollapsed && window.innerWidth > 992) {
+    sidebar.classList.add('collapsed');
+  }
+
+  toggleBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 992) {
+        sidebar.classList.toggle('mobile-open');
+      } else {
+        sidebar.classList.toggle('collapsed');
+        const collapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('dashboard_sidebar_collapsed', collapsed ? 'true' : 'false');
+      }
+
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 300);
+    });
+  });
+}
 
 function setupTabs() {
   const tabBtns = document.querySelectorAll('.tab-btn');
@@ -177,6 +218,7 @@ function setupFilterListeners() {
 
   document.getElementById('select-menu-category').addEventListener('change', (e) => {
     state.selectedCategory = e.target.value;
+    syncCategoryPills(state.selectedCategory);
     renderMenuEngineering();
   });
 }
@@ -191,9 +233,7 @@ function setupCategoryPills() {
       state.selectedCategory = cat;
 
       const selectMenuCat = document.getElementById('select-menu-category');
-      if (selectMenuCat) {
-        selectMenuCat.value = cat === 'ALL' || cat === 'Online' || cat === 'Snacks' ? 'ALL' : cat;
-      }
+      if (selectMenuCat) selectMenuCat.value = cat;
 
       renderActiveTab();
     });
@@ -238,6 +278,7 @@ async function loadData() {
       'waste',
       'channel_daily',
       'orders_hourly',
+      'category_daily',
     ];
 
     await Promise.all(
@@ -273,8 +314,16 @@ function populateFilters() {
     selectOutlet.appendChild(opt);
   });
 
-  // Determine min and max dates from pnl_daily
-  const allDates = [...new Set((state.data.pnl_daily || []).map((r) => r.report_date).filter(Boolean))].sort();
+  // Rentang tanggal tersedia = hanya hari yang benar-benar punya transaksi
+  // (mart membuat baris untuk setiap hari s/d hari ini, termasuk hari yang belum ada datanya)
+  const allDates = [
+    ...new Set(
+      (state.data.pnl_daily || [])
+        .filter((r) => (Number(r.net_sales) || 0) > 0 || (Number(r.order_count) || 0) > 0)
+        .map((r) => r.report_date)
+        .filter(Boolean)
+    ),
+  ].sort();
   if (allDates.length > 0) {
     state.minAvailableDate = allDates[0];
     state.maxAvailableDate = allDates[allDates.length - 1];
@@ -282,6 +331,7 @@ function populateFilters() {
     state.minAvailableDate = '2025-07-01';
     state.maxAvailableDate = '2026-10-11';
   }
+  state.lastDataDate = state.maxAvailableDate;
 
   // Set default preset to MTD (Bulan Terakhir)
   applyDatePreset('MTD');
@@ -312,175 +362,340 @@ function renderActiveTab() {
 
 // TAB 1: EXECUTIVE P&L
 function renderPnlExecutive() {
-  const pnlDaily = state.data.pnl_daily || [];
-  let filtered = pnlDaily;
-  if (state.selectedOutlet !== 'ALL') {
-    filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
-  }
-
   const { start, end } = state.dateRange;
   if (!start || !end) return;
 
-  // Filter current period daily rows
-  const curDaily = filtered.filter((r) => r.report_date >= start && r.report_date <= end);
-
-  // Compute duration in days and previous period
   const dStart = new Date(start);
   const dEnd = new Date(end);
   const dayCount = Math.max(1, Math.round((dEnd - dStart) / 86400000) + 1);
   const prevEnd = dateAddDays(start, -1);
   const prevStart = dateAddDays(prevEnd, -(dayCount - 1));
-  const prevDaily = filtered.filter((r) => r.report_date >= prevStart && r.report_date <= prevEnd);
-
-  // Aggregation helper
-  const aggregateRows = (rows) => {
-    const acc = {
-      net_sales: 0,
-      gross_sales: 0,
-      discounts: 0,
-      cost_of_sales: 0,
-      actual_cost_of_sales: 0,
-      waste_cost: 0,
-      labor_cost: 0,
-      other_opex: 0,
-      channel_commission: 0,
-      payment_fees: 0,
-      outlet_ebitda: 0,
-      order_count: 0,
-    };
-    rows.forEach((r) => {
-      acc.net_sales += Number(r.net_sales) || 0;
-      acc.gross_sales += Number(r.gross_sales) || 0;
-      acc.discounts += Number(r.discounts) || 0;
-      acc.actual_cost_of_sales += Number(r.cost_of_sales || r.actual_cost_of_sales) || 0;
-      acc.cost_of_sales += Number(r.cost_of_sales) || 0;
-      acc.waste_cost += Number(r.waste_cost) || 0;
-      acc.labor_cost += Number(r.labor_cost) || 0;
-      acc.other_opex += Number(r.other_opex) || 0;
-      acc.channel_commission += Number(r.channel_commission) || 0;
-      acc.payment_fees += Number(r.payment_fees) || 0;
-      acc.outlet_ebitda += Number(r.outlet_ebitda) || 0;
-      acc.order_count += Number(r.order_count) || 0;
-    });
-    return acc;
-  };
-
-  const cur = aggregateRows(curDaily);
-  const prev = aggregateRows(prevDaily.length > 0 ? prevDaily : curDaily);
-
-  // Percentages
-  const curFoodCostPct = cur.net_sales ? (cur.actual_cost_of_sales / cur.net_sales) * 100 : 0;
-  const prevFoodCostPct = prev.net_sales ? (prev.actual_cost_of_sales / prev.net_sales) * 100 : 0;
-  const curPrimeCostPct = cur.net_sales ? ((cur.actual_cost_of_sales + cur.labor_cost) / cur.net_sales) * 100 : 0;
-  const prevPrimeCostPct = prev.net_sales ? ((prev.actual_cost_of_sales + prev.labor_cost) / prev.net_sales) * 100 : 0;
-  const curEbitdaPct = cur.net_sales ? (cur.outlet_ebitda / cur.net_sales) * 100 : 0;
-  const prevEbitdaPct = prev.net_sales ? (prev.outlet_ebitda / prev.net_sales) * 100 : 0;
-  const curWastePct = cur.net_sales ? (cur.waste_cost / cur.net_sales) * 100 : 0;
-  const prevWastePct = prev.net_sales ? (prev.waste_cost / prev.net_sales) * 100 : 0;
-  const curAov = cur.order_count ? cur.net_sales / cur.order_count : 0;
-  const prevAov = prev.order_count ? prev.net_sales / prev.order_count : 0;
-
   const dateLabel = `${start.substring(5)} s/d ${end.substring(5)} (${dayCount} hr)`;
 
-  const cardsHtml = `
-    <div class="kpi-card">
-      <div class="kpi-header">
-        <span class="kpi-title">Net Sales Bersih</span>
-        <div class="kpi-badge-row">
-          <span class="badge-tag badge-star">${dateLabel}</span>
-        </div>
-      </div>
-      <div class="kpi-value">${fmtRpCompact(cur.net_sales)}</div>
-      <div class="kpi-delta ${cur.net_sales >= prev.net_sales ? 'good' : 'bad'}">
-        ${cur.net_sales >= prev.net_sales ? '▲ +' : '▼ -'}${fmtRp(Math.abs(cur.net_sales - prev.net_sales))} vs Periode Lalu
-      </div>
-      <div class="kpi-subtext">Gross: ${fmtRp(cur.gross_sales)} (Diskon ${fmtRp(cur.discounts)})</div>
-    </div>
+  const isCategoryMode = Boolean(state.selectedCategory && state.selectedCategory !== 'ALL');
+  const catLabelMap = {
+    Beverage: 'Beverage & Coffee',
+    Food: 'Burger & Rice Meals',
+    Bakery: 'Bakery & Pastry',
+  };
+  const categoryTitle = catLabelMap[state.selectedCategory] || state.selectedCategory;
 
-    <div class="kpi-card">
-      <div class="kpi-header">
-        <span class="kpi-title">Actual Food Cost %</span>
-        <div class="kpi-badge-row">
-          <span class="badge-tag ${curFoodCostPct <= 32 ? 'badge-status-ok' : 'badge-status-critical'}">Target ≤ 32%</span>
-        </div>
-      </div>
-      <div class="kpi-value">${fmtPct(curFoodCostPct)}</div>
-      <div class="kpi-delta ${curFoodCostPct <= prevFoodCostPct ? 'good' : 'bad'}">
-        ${curFoodCostPct <= prevFoodCostPct ? '▼ -' : '▲ +'}${Math.abs(curFoodCostPct - prevFoodCostPct).toFixed(1)} pp vs Periode Lalu
-      </div>
-      <div class="kpi-subtext">HPP Aktual: ${fmtRp(cur.actual_cost_of_sales)}</div>
-    </div>
+  let cardsHtml = '';
+  let curDataForWaterfall = null;
 
-    <div class="kpi-card">
-      <div class="kpi-header">
-        <span class="kpi-title">Prime Cost % (HPP + Gaji)</span>
-        <div class="kpi-badge-row">
-          <span class="badge-tag ${curPrimeCostPct <= 60 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 60%</span>
-        </div>
-      </div>
-      <div class="kpi-value">${fmtPct(curPrimeCostPct)}</div>
-      <div class="kpi-delta ${curPrimeCostPct <= prevPrimeCostPct ? 'good' : 'bad'}">
-        ${curPrimeCostPct <= prevPrimeCostPct ? '▼ -' : '▲ +'}${Math.abs(curPrimeCostPct - prevPrimeCostPct).toFixed(1)} pp vs Periode Lalu
-      </div>
-      <div class="kpi-subtext">Biaya Staf: ${fmtRp(cur.labor_cost)}</div>
-    </div>
+  if (isCategoryMode) {
+    // Mode Kontribusi Kategori: gunakan category_daily
+    const allowedCats = CATEGORY_MAP[state.selectedCategory] || [state.selectedCategory];
+    let catRows = state.data.category_daily || [];
+    if (state.selectedOutlet !== 'ALL') {
+      catRows = catRows.filter((r) => r.outlet_id === state.selectedOutlet);
+    }
+    catRows = catRows.filter((r) => allowedCats.includes(r.category_name));
 
-    <div class="kpi-card">
-      <div class="kpi-header">
-        <span class="kpi-title">Waste to Sales %</span>
-        <div class="kpi-badge-row">
-          <span class="badge-tag ${curWastePct <= 2 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 2%</span>
-        </div>
-      </div>
-      <div class="kpi-value">${fmtPct(curWastePct)}</div>
-      <div class="kpi-delta ${curWastePct <= prevWastePct ? 'good' : 'bad'}">
-        ${curWastePct <= prevWastePct ? '▼ -' : '▲ +'}${Math.abs(curWastePct - prevWastePct).toFixed(1)} pp vs Periode Lalu
-      </div>
-      <div class="kpi-subtext">Biaya Limbah: ${fmtRp(cur.waste_cost)}</div>
-    </div>
+    const curCatDaily = catRows.filter((r) => r.report_date >= start && r.report_date <= end);
+    const prevCatDaily = catRows.filter((r) => r.report_date >= prevStart && r.report_date <= prevEnd);
+    const hasPrev = prevCatDaily.length > 0;
 
-    <div class="kpi-card">
-      <div class="kpi-header">
-        <span class="kpi-title">Outlet EBITDA Margin</span>
-        <div class="kpi-badge-row">
-          <span class="badge-tag badge-status-ok">Bottom-Line</span>
-        </div>
-      </div>
-      <div class="kpi-value">${fmtPct(curEbitdaPct)}</div>
-      <div class="kpi-delta ${curEbitdaPct >= prevEbitdaPct ? 'good' : 'bad'}">
-        ${curEbitdaPct >= prevEbitdaPct ? '▲ +' : '▼ -'}${Math.abs(curEbitdaPct - prevEbitdaPct).toFixed(1)} pp vs Periode Lalu
-      </div>
-      <div class="kpi-subtext">EBITDA: ${fmtRp(cur.outlet_ebitda)}</div>
-    </div>
+    const aggregateCatRows = (rows) => {
+      const acc = {
+        net_sales: 0,
+        gross_sales: 0,
+        discounts: 0,
+        cogs_standard: 0,
+        actual_cost_of_sales: 0,
+        gross_profit: 0,
+        units_sold: 0,
+        line_count: 0,
+      };
+      rows.forEach((r) => {
+        acc.net_sales += Number(r.net_sales) || 0;
+        acc.gross_sales += Number(r.gross_sales) || 0;
+        acc.discounts += Number(r.discounts) || 0;
+        acc.cogs_standard += Number(r.cogs_standard) || 0;
+        acc.actual_cost_of_sales += Number(r.cogs_standard) || 0;
+        acc.gross_profit += Number(r.gross_profit) || 0;
+        acc.units_sold += Number(r.units_sold) || 0;
+        acc.line_count += Number(r.line_count) || 0;
+      });
+      return acc;
+    };
 
-    <div class="kpi-card">
-      <div class="kpi-header">
-        <span class="kpi-title">Avg Order Value (AOV)</span>
-        <div class="kpi-badge-row">
-          <span class="badge-tag badge-puzzle">${fmtNum(cur.order_count)} Order</span>
+    const cur = aggregateCatRows(curCatDaily);
+    const prev = hasPrev ? aggregateCatRows(prevCatDaily) : null;
+    curDataForWaterfall = cur;
+
+    const curFoodCostPct = cur.net_sales ? (cur.cogs_standard / cur.net_sales) * 100 : 0;
+    const prevFoodCostPct = prev && prev.net_sales ? (prev.cogs_standard / prev.net_sales) * 100 : null;
+    const curGrossMarginPct = cur.net_sales ? (cur.gross_profit / cur.net_sales) * 100 : 0;
+    const prevGrossMarginPct = prev && prev.net_sales ? (prev.gross_profit / prev.net_sales) * 100 : null;
+
+    const formatDelta = (currentVal, previousVal, isPct = false, higherIsGood = true) => {
+      if (!hasPrev || previousVal === undefined || previousVal === null) {
+        return `<div class="kpi-delta neutral">- n/a vs Periode Lalu -</div>`;
+      }
+      const diff = currentVal - previousVal;
+      if (Math.abs(diff) < 0.001) {
+        return `<div class="kpi-delta neutral">0${isPct ? '.0 pp' : ''} vs Periode Lalu</div>`;
+      }
+      const isGood = higherIsGood ? diff >= 0 : diff <= 0;
+      const arrow = diff >= 0 ? '▲ +' : '▼ -';
+      const valStr = isPct ? `${Math.abs(diff).toFixed(1)} pp` : fmtRp(Math.abs(diff));
+      return `<div class="kpi-delta ${isGood ? 'good' : 'bad'}">${arrow}${valStr} vs Periode Lalu</div>`;
+    };
+
+    cardsHtml = `
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Net Sales: ${categoryTitle}</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag badge-star">${dateLabel}</span>
+          </div>
         </div>
+        <div class="kpi-value">${fmtRpCompact(cur.net_sales)}</div>
+        ${formatDelta(cur.net_sales, prev ? prev.net_sales : null, false, true)}
+        <div class="kpi-subtext">Gross: ${fmtRp(cur.gross_sales)} (Diskon ${fmtRp(cur.discounts)})</div>
       </div>
-      <div class="kpi-value">${fmtRpCompact(curAov)}</div>
-      <div class="kpi-delta ${curAov >= prevAov ? 'good' : 'bad'}">
-        ${curAov >= prevAov ? '▲ +' : '▼ -'}${fmtRp(Math.abs(curAov - prevAov))} vs Periode Lalu
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">HPP Bahan (Food Cost %)</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag ${curFoodCostPct <= 32 ? 'badge-status-ok' : 'badge-status-critical'}">Target ≤ 32%</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtPct(curFoodCostPct)}</div>
+        ${formatDelta(curFoodCostPct, prevFoodCostPct, true, false)}
+        <div class="kpi-subtext">HPP Bahan Baku: ${fmtRp(cur.cogs_standard)}</div>
       </div>
-      <div class="kpi-subtext">Keranjang Belanja Bersih</div>
-    </div>
-  `;
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Gross Margin % (Laba Kotor)</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag ${curGrossMarginPct >= 65 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≥ 65%</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtPct(curGrossMarginPct)}</div>
+        ${formatDelta(curGrossMarginPct, prevGrossMarginPct, true, true)}
+        <div class="kpi-subtext">Total Laba Kotor: ${fmtRp(cur.gross_profit)}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Volume Porsi Terjual</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag badge-star">Unit Sales</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtNum(cur.units_sold)} Item</div>
+        ${formatDelta(cur.units_sold, prev ? prev.units_sold : null, false, true)}
+        <div class="kpi-subtext">${fmtNum(cur.line_count)} Baris Menu Terjual</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Kontribusi Margin Kotor</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag badge-status-ok">Product Profit</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtRpCompact(cur.gross_profit)}</div>
+        ${formatDelta(cur.gross_profit, prev ? prev.gross_profit : null, false, true)}
+        <div class="kpi-subtext">Margin sebelum alokasi beban opex outlet</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Rata-rata Harga / Porsi</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag badge-puzzle">Avg Item Price</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtRpCompact(cur.units_sold ? cur.net_sales / cur.units_sold : 0)}</div>
+        ${formatDelta(
+          cur.units_sold ? cur.net_sales / cur.units_sold : 0,
+          prev && prev.units_sold ? prev.net_sales / prev.units_sold : null,
+          false,
+          true
+        )}
+        <div class="kpi-subtext">Realisasi netto per porsi menu</div>
+      </div>
+
+      <div class="data-note data-note-wide">
+        <strong>Mode Kontribusi Kategori: ${categoryTitle}.</strong>
+        Menampilkan sumbangsih penjualan, HPP bahan baku resep, laba kotor, dan volume terjual khusus produk kategori ini.
+        <em>(Beban Staf/Labor dan Opex outlet melekat di tingkat outlet secara keseluruhan, dapat ditinjau pada filter "Semua Kategori").</em>
+      </div>
+    `;
+
+    renderDynamicTrendChart(curCatDaily, dayCount, true, categoryTitle);
+    renderWaterfallChart(cur, true, categoryTitle);
+  } else {
+    // Mode Keseluruhan Outlet: gunakan pnl_daily
+    const pnlDaily = state.data.pnl_daily || [];
+    let filtered = pnlDaily;
+    if (state.selectedOutlet !== 'ALL') {
+      filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
+    }
+
+    const curDaily = filtered.filter((r) => r.report_date >= start && r.report_date <= end);
+    const prevDaily = filtered.filter((r) => r.report_date >= prevStart && r.report_date <= prevEnd);
+    const hasPrev = prevDaily.length > 0;
+
+    const aggregateRows = (rows) => {
+      const acc = {
+        net_sales: 0,
+        gross_sales: 0,
+        discounts: 0,
+        cost_of_sales: 0,
+        actual_cost_of_sales: 0,
+        waste_cost: 0,
+        labor_cost: 0,
+        other_opex: 0,
+        channel_commission: 0,
+        payment_fees: 0,
+        outlet_ebitda: 0,
+        order_count: 0,
+      };
+      rows.forEach((r) => {
+        acc.net_sales += Number(r.net_sales) || 0;
+        acc.gross_sales += Number(r.gross_sales) || 0;
+        acc.discounts += Number(r.discounts) || 0;
+        acc.actual_cost_of_sales += Number(r.cost_of_sales || r.actual_cost_of_sales) || 0;
+        acc.cost_of_sales += Number(r.cost_of_sales) || 0;
+        acc.waste_cost += Number(r.waste_cost) || 0;
+        acc.labor_cost += Number(r.labor_cost) || 0;
+        acc.other_opex += Number(r.other_opex) || 0;
+        acc.channel_commission += Number(r.channel_commission) || 0;
+        acc.payment_fees += Number(r.payment_fees) || 0;
+        acc.outlet_ebitda += Number(r.outlet_ebitda) || 0;
+        acc.order_count += Number(r.order_count) || 0;
+      });
+      return acc;
+    };
+
+    const cur = aggregateRows(curDaily);
+    const prev = hasPrev ? aggregateRows(prevDaily) : null;
+    curDataForWaterfall = cur;
+
+    const curFoodCostPct = cur.net_sales ? (cur.actual_cost_of_sales / cur.net_sales) * 100 : 0;
+    const prevFoodCostPct = prev && prev.net_sales ? (prev.actual_cost_of_sales / prev.net_sales) * 100 : null;
+    const curPrimeCostPct = cur.net_sales ? ((cur.actual_cost_of_sales + cur.labor_cost) / cur.net_sales) * 100 : 0;
+    const prevPrimeCostPct = prev && prev.net_sales ? ((prev.actual_cost_of_sales + prev.labor_cost) / prev.net_sales) * 100 : null;
+    const curEbitdaPct = cur.net_sales ? (cur.outlet_ebitda / cur.net_sales) * 100 : 0;
+    const prevEbitdaPct = prev && prev.net_sales ? (prev.outlet_ebitda / prev.net_sales) * 100 : null;
+    const curWastePct = cur.net_sales ? (cur.waste_cost / cur.net_sales) * 100 : 0;
+    const prevWastePct = prev && prev.net_sales ? (prev.waste_cost / prev.net_sales) * 100 : null;
+    const curAov = cur.order_count ? cur.net_sales / cur.order_count : 0;
+    const prevAov = prev && prev.order_count ? prev.net_sales / prev.order_count : null;
+
+    const formatDelta = (currentVal, previousVal, isPct = false, higherIsGood = true) => {
+      if (!hasPrev || previousVal === undefined || previousVal === null) {
+        return `<div class="kpi-delta neutral">- n/a vs Periode Lalu -</div>`;
+      }
+      const diff = currentVal - previousVal;
+      if (Math.abs(diff) < 0.001) {
+        return `<div class="kpi-delta neutral">0${isPct ? '.0 pp' : ''} vs Periode Lalu</div>`;
+      }
+      const isGood = higherIsGood ? diff >= 0 : diff <= 0;
+      const arrow = diff >= 0 ? '▲ +' : '▼ -';
+      const valStr = isPct ? `${Math.abs(diff).toFixed(1)} pp` : fmtRp(Math.abs(diff));
+      return `<div class="kpi-delta ${isGood ? 'good' : 'bad'}">${arrow}${valStr} vs Periode Lalu</div>`;
+    };
+
+    cardsHtml = `
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Net Sales Bersih</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag badge-star">${dateLabel}</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtRpCompact(cur.net_sales)}</div>
+        ${formatDelta(cur.net_sales, prev ? prev.net_sales : null, false, true)}
+        <div class="kpi-subtext">Gross: ${fmtRp(cur.gross_sales)} (Diskon ${fmtRp(cur.discounts)})</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Actual Food Cost %</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag ${curFoodCostPct <= 32 ? 'badge-status-ok' : 'badge-status-critical'}">Target ≤ 32%</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtPct(curFoodCostPct)}</div>
+        ${formatDelta(curFoodCostPct, prevFoodCostPct, true, false)}
+        <div class="kpi-subtext">HPP Aktual: ${fmtRp(cur.actual_cost_of_sales)}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Prime Cost % (HPP + Gaji)</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag ${curPrimeCostPct <= 60 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 60%</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtPct(curPrimeCostPct)}</div>
+        ${formatDelta(curPrimeCostPct, prevPrimeCostPct, true, false)}
+        <div class="kpi-subtext">Biaya Staf: ${fmtRp(cur.labor_cost)}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Waste to Sales %</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag ${curWastePct <= 2 ? 'badge-status-ok' : 'badge-status-warn'}">Target ≤ 2%</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtPct(curWastePct)}</div>
+        ${formatDelta(curWastePct, prevWastePct, true, false)}
+        <div class="kpi-subtext">Biaya Limbah: ${fmtRp(cur.waste_cost)}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Outlet EBITDA Margin</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag badge-status-ok">Bottom-Line</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtPct(curEbitdaPct)}</div>
+        ${formatDelta(curEbitdaPct, prevEbitdaPct, true, true)}
+        <div class="kpi-subtext">EBITDA: ${fmtRp(cur.outlet_ebitda)}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Avg Order Value (AOV)</span>
+          <div class="kpi-badge-row">
+            <span class="badge-tag badge-puzzle">${fmtNum(cur.order_count)} Order</span>
+          </div>
+        </div>
+        <div class="kpi-value">${fmtRpCompact(curAov)}</div>
+        ${formatDelta(curAov, prevAov, false, true)}
+        <div class="kpi-subtext">Keranjang Belanja Bersih</div>
+      </div>
+
+      <div class="data-note data-note-wide">
+        <strong>Catatan:</strong>
+        (1) <em>Actual Food Cost %</em> &amp; <em>HPP Aktual</em> pada tampilan harian = HPP standar resep + waste tercatat;
+        <u>belum</u> memuat selisih stock opname (lihat tab Cost Control &amp; Variance untuk nilai aktual bulanan).
+        (2) Data penjualan terakhir tersedia: <strong>${state.lastDataDate || '-'}</strong>.
+      </div>
+    `;
+
+    renderDynamicTrendChart(curDaily, dayCount, false);
+    renderWaterfallChart(cur, false);
+  }
+
   document.getElementById('kpi-cards-container').innerHTML = cardsHtml;
-
-  // Render Dynamic Trend Chart
-  renderDynamicTrendChart(curDaily, dayCount);
-
-  // Render Waterfall Chart
-  renderWaterfallChart(cur);
 
   // Render KPI Status Table for corresponding month
   const targetMonthKey = end.substring(0, 7) + '-01';
   renderKpiTable(targetMonthKey);
 }
 
-function renderDynamicTrendChart(dailyRows, dayCount) {
+function renderDynamicTrendChart(dailyRows, dayCount, isCategoryMode = false, categoryTitle = '') {
   const ctx = document.getElementById('chart-pnl-trend').getContext('2d');
   if (state.charts.trend) state.charts.trend.destroy();
 
@@ -495,12 +710,12 @@ function renderDynamicTrendChart(dailyRows, dayCount) {
       const d = r.report_date;
       if (!dayMap[d]) dayMap[d] = { net: 0, cost: 0 };
       dayMap[d].net += Number(r.net_sales) || 0;
-      dayMap[d].cost += Number(r.cost_of_sales || r.actual_cost_of_sales) || 0;
+      dayMap[d].cost += Number(r.cogs_standard !== undefined ? r.cogs_standard : (r.cost_of_sales || r.actual_cost_of_sales)) || 0;
     });
     const sortedDays = Object.keys(dayMap).sort();
     labels = sortedDays.map((d) => d.substring(5)); // 'MM-DD'
     netSales = sortedDays.map((d) => dayMap[d].net);
-    foodCostPct = sortedDays.map((d) => (dayMap[d].net ? ((dayMap[d].cost / dayMap[d].net) * 100).toFixed(1) : '0'));
+    foodCostPct = sortedDays.map((d) => (dayMap[d].net ? Number(((dayMap[d].cost / dayMap[d].net) * 100).toFixed(1)) : null));
   } else {
     // Monthly grouped granularity
     const mCountMap = {};
@@ -508,13 +723,15 @@ function renderDynamicTrendChart(dailyRows, dayCount) {
       const m = r.report_month || r.report_date.substring(0, 7) + '-01';
       if (!mCountMap[m]) mCountMap[m] = { net: 0, cost: 0 };
       mCountMap[m].net += Number(r.net_sales) || 0;
-      mCountMap[m].cost += Number(r.cost_of_sales || r.actual_cost_of_sales) || 0;
+      mCountMap[m].cost += Number(r.cogs_standard !== undefined ? r.cogs_standard : (r.cost_of_sales || r.actual_cost_of_sales)) || 0;
     });
     const sortedMonths = Object.keys(mCountMap).sort();
     labels = sortedMonths;
     netSales = sortedMonths.map((m) => mCountMap[m].net);
-    foodCostPct = sortedMonths.map((m) => (mCountMap[m].net ? ((mCountMap[m].cost / mCountMap[m].net) * 100).toFixed(1) : '0'));
+    foodCostPct = sortedMonths.map((m) => (mCountMap[m].net ? Number(((mCountMap[m].cost / mCountMap[m].net) * 100).toFixed(1)) : null));
   }
+
+  const seriesLabel = isCategoryMode ? `${categoryTitle} Net Sales (IDR)` : 'Net Sales (IDR)';
 
   state.charts.trend = new Chart(ctx, {
     type: 'bar',
@@ -523,7 +740,7 @@ function renderDynamicTrendChart(dailyRows, dayCount) {
       datasets: [
         {
           type: 'bar',
-          label: 'Net Sales (IDR)',
+          label: seriesLabel,
           data: netSales,
           backgroundColor: '#F8B602',
           borderColor: '#E5A700',
@@ -554,7 +771,7 @@ function renderDynamicTrendChart(dailyRows, dayCount) {
         tooltip: {
           callbacks: {
             label: (ctx) => {
-              if (ctx.dataset.yAxisID === 'ySales') return `Net Sales: ${fmtRp(ctx.raw)}`;
+              if (ctx.dataset.yAxisID === 'ySales') return `${seriesLabel}: ${fmtRp(ctx.raw)}`;
               return `Food Cost: ${ctx.raw}%`;
             },
           },
@@ -581,9 +798,71 @@ function renderDynamicTrendChart(dailyRows, dayCount) {
   });
 }
 
-function renderWaterfallChart(cur) {
+function renderWaterfallChart(cur, isCategoryMode = false, categoryTitle = '') {
   const ctx = document.getElementById('chart-waterfall').getContext('2d');
   if (state.charts.waterfall) state.charts.waterfall.destroy();
+
+  if (isCategoryMode) {
+    const labels = [
+      'Gross Sales',
+      'Diskon',
+      'Net Sales',
+      'HPP Bahan (COGS)',
+      'Gross Profit (Laba Kotor)',
+    ];
+
+    const values = [
+      cur.gross_sales || 0,
+      -(cur.discounts || 0),
+      cur.net_sales || 0,
+      -(cur.cogs_standard || 0),
+      cur.gross_profit || 0,
+    ];
+
+    const colors = values.map((v, i) => {
+      if (i === 0 || i === 2) return '#F8B602';
+      if (i === 4) return v >= 0 ? '#00B074' : '#FF5B5B';
+      return '#FF5B5B';
+    });
+
+    state.charts.waterfall = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: `Aliran Laba Kotor ${categoryTitle}`,
+            data: values.map((v) => Math.abs(v)),
+            backgroundColor: colors,
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const orig = values[ctx.dataIndex];
+                return (orig < 0 ? '- ' : '') + fmtRp(Math.abs(orig));
+              },
+            },
+          },
+        },
+        scales: {
+          x: { grid: { color: '#F0F1F6' }, ticks: { color: '#464E5F', font: { weight: '600', size: 10 } } },
+          y: {
+            grid: { color: '#F0F1F6' },
+            ticks: { color: '#7E8299', callback: (v) => 'Rp ' + (v / 1e6).toFixed(0) + 'M' },
+          },
+        },
+      },
+    });
+    return;
+  }
 
   const labels = [
     'Gross Sales',
@@ -652,12 +931,52 @@ function renderWaterfallChart(cur) {
     },
   });
 }
+// Konsolidasi KPI semua outlet dari pnl_monthly (rasio dihitung dari total, bukan rata-rata)
+function consolidateKpiRows(monthRows, monthKey) {
+  const pm = (state.data.pnl_monthly || []).filter((r) => r.report_month === monthKey);
+  const sum = (k) => pm.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+  const net = sum('net_sales');
+  if (!pm.length || !net) return [];
+  const pct = (n) => Number(((n / net) * 100).toFixed(2));
+  const actual = sum('actual_cost_of_sales');
+  const values = {
+    food_cost_pct: pct(actual),
+    prime_cost_pct: pct(actual + sum('labor_cost')),
+    waste_pct: pct(sum('waste_cost')),
+    gross_margin_pct: pct(sum('gross_profit')),
+    channel_cost_pct: pct(sum('channel_commission')),
+    inventory_variance_pct: pct(sum('inventory_variance_cost')),
+  };
+
+  const seen = {};
+  const out = [];
+  monthRows.forEach((r) => {
+    if (seen[r.metric_code] || values[r.metric_code] === undefined) return;
+    seen[r.metric_code] = true;
+    const v = values[r.metric_code];
+    const warn = Number(r.warn_threshold);
+    const crit = Number(r.critical_threshold);
+    let status = 'OK';
+    if (r.direction === 'higher_is_worse') {
+      if (v >= crit) status = 'CRITICAL';
+      else if (v >= warn) status = 'WARN';
+    } else {
+      if (v <= crit) status = 'CRITICAL';
+      else if (v <= warn) status = 'WARN';
+    }
+    out.push({ ...r, outlet_id: 'ALL', metric_value: v, status });
+  });
+  return out;
+}
 
 function renderKpiTable(monthKey) {
   const kpiData = state.data.kpi_status || [];
   let filtered = kpiData.filter((r) => r.report_month === monthKey);
+  const isComplete = filtered.length ? filtered.every((r) => r.is_complete_month !== false) : true;
   if (state.selectedOutlet !== 'ALL') {
     filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
+  } else {
+    filtered = consolidateKpiRows(filtered, monthKey);
   }
 
   const tbody = document.querySelector('#table-kpi-status tbody');
@@ -666,7 +985,7 @@ function renderKpiTable(monthKey) {
     return;
   }
 
-  tbody.innerHTML = filtered
+  const rowsHtml = filtered
     .map((r) => {
       const isPct = r.metric_code.includes('pct');
       const val = isPct ? fmtPct(r.metric_value) : fmtRp(r.metric_value);
@@ -683,6 +1002,12 @@ function renderKpiTable(monthKey) {
     `;
     })
     .join('');
+
+  const scope = state.selectedOutlet === 'ALL' ? 'konsolidasi seluruh outlet' : `outlet ${state.selectedOutlet}`;
+  const note = `<tr><td colspan="4"><span class="data-note">Bulan ${monthKey.substring(0, 7)} (${scope}).${
+    isComplete ? '' : ' Bulan berjalan belum lengkap: Prime Cost belum memuat Labor bila alokasi opex bulan ini belum tersedia.'
+  }</span></td></tr>`;
+  tbody.innerHTML = rowsHtml + note;
 }
 
 // TAB 2: COST CONTROL & VARIANCE
@@ -856,8 +1181,9 @@ function renderMenuEngineering() {
   if (state.selectedOutlet !== 'ALL') {
     filtered = filtered.filter((r) => r.outlet_id === state.selectedOutlet);
   }
-  if (state.selectedCategory !== 'ALL' && state.selectedCategory !== 'Online' && state.selectedCategory !== 'Snacks') {
-    filtered = filtered.filter((r) => r.category_name === state.selectedCategory);
+  if (state.selectedCategory !== 'ALL' && CATEGORY_MAP[state.selectedCategory]) {
+    const allowed = CATEGORY_MAP[state.selectedCategory];
+    filtered = filtered.filter((r) => allowed.includes(r.category_name));
   }
 
   // Deduplicate menu items for matching month in date range
