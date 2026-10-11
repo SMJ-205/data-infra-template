@@ -38,7 +38,8 @@ if (window.Chart) {
 }
 
 // Utilities
-const fmtRp = (v) => 'Rp ' + Math.round(Number(v) || 0).toLocaleString('id-ID');
+const fmtRp = (v) => 'Rp\u00A0' + Math.round(Number(v) || 0).toLocaleString('id-ID');
+const fmtRpCompact = (v) => `<span class="kpi-currency">Rp</span><span>${Math.round(Number(v) || 0).toLocaleString('id-ID')}</span>`;
 const fmtPct = (v) => (v === null || v === undefined || isNaN(v) ? '-' : Number(v).toFixed(1) + '%');
 const fmtNum = (v) => Math.round(Number(v) || 0).toLocaleString('id-ID');
 
@@ -138,7 +139,7 @@ async function loadData() {
     state.meta = await metaRes.json();
     if (state.meta.generated_at_utc) {
       const date = new Date(state.meta.generated_at_utc);
-      badgeSync.textContent = `🕒 Sync: ${date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`;
+      badgeSync.textContent = `Sync: ${date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`;
     }
 
     const files = [
@@ -166,7 +167,7 @@ async function loadData() {
     renderActiveTab();
   } catch (err) {
     console.error('Error loading data:', err);
-    badgeSync.textContent = '❌ Gagal memuat data JSON';
+    badgeSync.textContent = 'Gagal memuat data JSON';
   }
 }
 
@@ -290,9 +291,9 @@ function renderPnlExecutive() {
     <div class="kpi-card">
       <div class="kpi-header">
         <span class="kpi-title">Net Sales Bersih</span>
-        <span class="badge-tag badge-star">💰 ${latestMonthKey}</span>
+        <span class="badge-tag badge-star">${latestMonthKey}</span>
       </div>
-      <div class="kpi-value">${fmtRp(cur.net_sales)}</div>
+      <div class="kpi-value">${fmtRpCompact(cur.net_sales)}</div>
       <div class="kpi-delta ${cur.net_sales >= prev.net_sales ? 'good' : 'bad'}">
         ${cur.net_sales >= prev.net_sales ? '▲ +' : '▼ -'}${fmtRp(Math.abs(cur.net_sales - prev.net_sales))} vs MoM
       </div>
@@ -352,7 +353,7 @@ function renderPnlExecutive() {
         <span class="kpi-title">Avg Order Value (AOV)</span>
         <span class="badge-tag badge-puzzle">${fmtNum(cur.order_count)} Order</span>
       </div>
-      <div class="kpi-value">${fmtRp(curAov)}</div>
+      <div class="kpi-value">${fmtRpCompact(curAov)}</div>
       <div class="kpi-delta ${curAov >= prevAov ? 'good' : 'bad'}">
         ${curAov >= prevAov ? '▲ +' : '▼ -'}${fmtRp(Math.abs(curAov - prevAov))} vs MoM
       </div>
@@ -983,7 +984,7 @@ function updateSimulator() {
   document.getElementById('sim-kpi-container').innerHTML = `
     <div class="kpi-card">
       <div class="kpi-header"><span class="kpi-title">Simulasi Net Sales</span></div>
-      <div class="kpi-value">${fmtRp(simSales)}</div>
+      <div class="kpi-value">${fmtRpCompact(simSales)}</div>
       <div class="kpi-delta ${simSales >= baseSales ? 'good' : 'bad'}">
         ${simSales >= baseSales ? '▲ +' : '▼ -'}${fmtRp(Math.abs(simSales - baseSales))}
       </div>
@@ -991,7 +992,7 @@ function updateSimulator() {
 
     <div class="kpi-card">
       <div class="kpi-header"><span class="kpi-title">Simulasi Komisi Platform</span></div>
-      <div class="kpi-value">${fmtRp(simComm)}</div>
+      <div class="kpi-value">${fmtRpCompact(simComm)}</div>
       <div class="kpi-delta ${simComm <= baseComm ? 'good' : 'bad'}">
         ${simComm <= baseComm ? '▼ -' : '▲ +'}${fmtRp(Math.abs(simComm - baseComm))}
       </div>
@@ -999,7 +1000,7 @@ function updateSimulator() {
 
     <div class="kpi-card">
       <div class="kpi-header"><span class="kpi-title">Simulasi Outlet EBITDA</span></div>
-      <div class="kpi-value">${fmtRp(simEbitda)}</div>
+      <div class="kpi-value">${fmtRpCompact(simEbitda)}</div>
       <div class="kpi-delta ${deltaEbitda >= 0 ? 'good' : 'bad'}">
         ${deltaEbitda >= 0 ? '▲ +' : '▼ -'}${fmtRp(Math.abs(deltaEbitda))} vs Baseline
       </div>
