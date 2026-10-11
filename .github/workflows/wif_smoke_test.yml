@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     strategy:
       fail-fast: false
@@ -21,13 +21,13 @@ jobs:
           - {name: sa-dbt,    sa_var: SA_DBT,    can_read: raw_fnb,  cannot_read: ""}
           - {name: sa-export, sa_var: SA_EXPORT, can_read: marts,    cannot_read: raw_fnb}
     steps:
-      - uses: actions/checkout@v4   # TODO Fase 7: pin ke commit SHA
+      - uses: actions/checkout@v5   # TODO Fase 7: pin ke commit SHA
       - name: Auth (WIF, tanpa key) sebagai ${{ matrix.name }}
-        uses: google-github-actions/auth@v2   # TODO Fase 7: pin ke commit SHA
+        uses: google-github-actions/auth@v3   # TODO Fase 7: pin ke commit SHA
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
           service_account: ${{ vars[matrix.sa_var] }}
-      - uses: google-github-actions/setup-gcloud@v2   # TODO Fase 7: pin ke commit SHA
+      - uses: google-github-actions/setup-gcloud@v3   # TODO Fase 7: pin ke commit SHA
       - name: Akses dataset yang diizinkan harus berhasil
         run: bq ls --project_id="${{ vars.GCP_PROJECT_ID }}" "${{ matrix.can_read }}"
       - name: Akses dataset terlarang harus ditolak
