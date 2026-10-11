@@ -481,6 +481,8 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .kpi-card:hover {
@@ -492,9 +494,10 @@ body {
 .kpi-header {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 8px;
   gap: 5px;
+  width: 100%;
 }
 
 .kpi-title {
@@ -508,12 +511,17 @@ body {
   min-height: 28px;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
 }
 
 .kpi-badge-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   min-height: 22px;
+  width: 100%;
 }
 
 .kpi-value {
@@ -527,7 +535,9 @@ body {
   text-overflow: ellipsis;
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 4px;
+  width: 100%;
 }
 
 .kpi-currency {
@@ -541,11 +551,13 @@ body {
   font-weight: 700;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 3px;
   padding: 2px 7px;
   border-radius: var(--radius-pill);
   width: fit-content;
   white-space: nowrap;
+  margin: 0 auto;
 }
 
 .kpi-delta.good {
@@ -571,6 +583,8 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
+  width: 100%;
 }
 
 /* ==========================================================================
