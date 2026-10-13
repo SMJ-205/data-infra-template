@@ -52,6 +52,29 @@ flowchart LR
 
 ---
 
+## Dashboard & Serving Layer Showcase
+
+Platform ini menyediakan antarmuka analitik ganda (*dual serving layer*) yang melayani kebutuhan operasional harian gerai hingga pelaporan keuangan eksekutif tanpa biaya server:
+
+### 1. Multi-Outlet Performance Intelligence (Web Dashboard - Vercel)
+Dashboard web interaktif (*client-side SPA*) berbasis HTML5, Vanilla CSS, dan Chart.js dengan konsumsi static JSON (< 5.5 MB):
+- **Executive P&L & Cost Control**: Tracking metrik utama secara real-time seperti Net Sales Bersih, Actual Food Cost % vs Target (≤32%), Prime Cost % (HPP + Gaji), Waste-to-Sales %, Outlet EBITDA Margin, dan Average Order Value (AOV).
+- **Tren Kinerja Finansial**: Grafik harian Net Sales vs Food Cost % terhadap batas ambang target (32% Warn, 35% Critical) dari seed dbt.
+- **Dimensi Interaktif**: Filter konsolidasi atau spesifik per outlet (`Semua Outlet`, `FLG-01`, `KIOSK-02`, `CLOUD-03`), preset periode waktu (MTD/Custom), dan kategori menu.
+- **Fitur Analitik Lanjutan**: Tab terintegrasi untuk Menu Engineering (Kasavana-Smith Matrix), Kanal Penjualan & Heatmap Traffic, What-If Margin Simulator, serta Marts Data Explorer.
+
+![Nge-Meal Multi-Outlet Performance Intelligence Dashboard](docs/images/dashboard_web_intelligence.png)
+
+### 2. Executive Financial Dashboard (Google Sheets & Apps Script)
+Dashboard manajerial berbasis Google Sheets & Apps Script dengan sinkronisasi harian otomatis (*cached layer*) dari BigQuery:
+- **Tinjauan Keuangan Eksekutif**: Monitoring performa finansial tingkat tinggi (Revenue, Expense, Gross Profit, Outlet EBITDA, Rasio Beban, dan Margin Target).
+- **Tren & Analisis Bulanan**: Evaluasi histori Gross Profit Margin, EBITDA Margin, Operating Expense & OPEX Ratio bulanan, serta perbandingan revenue per business line.
+- **Multi-Outlet & Periode Picker**: Navigasi halaman cepat (*Revenue & Expenses*, *Profit Breakdown*, *Income Statement*) dengan seleksi outlet dan fokus periode bulan.
+
+![Nge-Meal Executive Financial Dashboard](docs/images/dashboard_financial_appsscript.png)
+
+---
+
 ## Zero-Cost Guarantee (100% Free-Tier Breakdown)
 
 Seluruh komponen arsitektur berada dalam batas gratis permanen (*free-tier*) tanpa risiko timbul biaya - karena arsitektur ini hanya digunakan sebagai simulasi portofolio :
@@ -130,6 +153,8 @@ Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FL
 │   ├── Code.gs                  # Sync BigQuery -> Sheets, deduplicated alert email
 │   ├── Dashboard.html           # Embedded Google Sheets web app
 │   └── appsscript.json          # Manifest OAuth scopes & BQ Advanced Service
+├── docs/
+│   └── images/                  # Preview tangkapan layar antarmuka dashboard
 └── scripts/
     ├── check_pii_columns.py     # Linter PII otomatis pada model YAML & JSON ekspor
     └── reconcile_neon_bigquery.py# Verifikasi 100% konsistensi row count OLTP vs DWH
