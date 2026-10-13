@@ -4,116 +4,434 @@
   <meta charset="utf-8">
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>F&amp;B Financial Statement &amp; Ratio Analysis</title>
+  <title>F&amp;B Executive Financial Dashboard</title>
+  <!-- Chart.js and DataLabels plugin -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
     :root {
-      --bg: #f8fafc;
+      --frame-bg: #e2ebf5;
+      --frame-border: #b9cee5;
+      --sidebar-bg: #1c4b82;
+      --sidebar-bg-dark: #153963;
+      --canvas-bg: #f5f8fc;
       --card-bg: #ffffff;
       --text-main: #0f172a;
       --text-muted: #64748b;
-      --border: #e2e8f0;
-      --primary: #1e40af;
-      --primary-light: #eff6ff;
+      --border: #dbe3ed;
+      --primary-blue: #1e40af;
+      --brand-blue: #2563eb;
+      --teal-accent: #10b981;
+      --amber-accent: #f59e0b;
+      --coral-accent: #ef4444;
       --good: #16a34a;
-      --good-bg: #dcfce7;
       --warn: #d97706;
-      --warn-bg: #fef3c7;
       --bad: #dc2626;
-      --bad-bg: #fee2e2;
     }
+
     * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       margin: 0;
-      padding: 24px;
-      background: var(--bg);
+      padding: 16px;
+      background: var(--frame-bg);
       color: var(--text-main);
       -webkit-font-smoothing: antialiased;
+      height: 100vh;
+      overflow: hidden;
     }
-    .header {
+
+    /* Outer Frame Container (PowerBI Canvas Border vibe) */
+    .dashboard-frame {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 24px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border);
+      height: 100%;
+      max-height: calc(100vh - 32px);
+      background: var(--canvas-bg);
+      border: 3px solid var(--frame-border);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(15, 35, 60, 0.08);
+      overflow: hidden;
     }
-    .header h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-    .header .subtitle { font-size: 13px; color: var(--text-muted); }
-    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-    .control-group { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
-    select {
-      padding: 7px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: #fff;
+
+    /* Left Sidebar (Locked / Fixed Scroll) */
+    .sidebar {
+      width: 255px;
+      flex-shrink: 0;
+      height: 100%;
+      overflow-y: auto;
+      background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg-dark) 100%);
+      color: #ffffff;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .sidebar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    /* Brand Card */
+    .brand-card {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      backdrop-filter: blur(4px);
+    }
+    .brand-logo-icon {
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      box-shadow: 0 3px 10px rgba(245, 158, 11, 0.35);
+    }
+    .brand-text-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      line-height: 1.1;
+      color: #ffffff;
+      display: flex;
+      align-items: baseline;
+    }
+    .brand-dot {
+      color: #f59e0b;
+      font-weight: 900;
+      margin-left: 1px;
+    }
+    .brand-subtitle {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fde047;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    /* Sidebar Section */
+    .nav-section { display: flex; flex-direction: column; gap: 8px; }
+    .nav-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #bfdbfe;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 2px;
+      padding-left: 2px;
+    }
+
+    /* Navigation Buttons */
+    .nav-btn {
+      width: 100%;
+      padding: 10px 14px;
       font-size: 13px;
-      font-weight: 500;
-      color: var(--text-main);
+      font-weight: 600;
+      text-align: left;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: #ffffff;
+      color: #1e3a8a;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .nav-btn:hover {
+      background: #eff6ff;
+      transform: translateY(-1px);
+    }
+    .nav-btn.active {
+      background: #334155;
+      color: #ffffff;
+      border-color: #475569;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Business Line / Outlet Buttons */
+    .outlet-btn-group { display: flex; flex-direction: column; gap: 6px; }
+    .outlet-btn {
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: #ffffff;
+      color: #1e3a8a;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .outlet-btn:hover { background: #f0f7ff; }
+    .outlet-btn.active {
+      background: #1e293b;
+      color: #ffffff;
+      border-color: #334155;
+      font-weight: 700;
+    }
+
+    /* Period Filter inside Sidebar */
+    .period-control {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .period-control label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #bfdbfe;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .period-select {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 5px;
+      border: 1px solid #ffffff;
+      background: #ffffff;
+      color: #0f172a;
+      font-size: 12px;
+      font-weight: 600;
       outline: none;
       cursor: pointer;
     }
 
-    /* Ratio Scorecard Grid */
-    .ratio-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 14px;
-      margin-bottom: 24px;
+    /* Sidebar Footer */
+    .sidebar-footer {
+      margin-top: auto;
+      font-size: 11px;
+      color: #93c5fd;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      line-height: 1.4;
     }
-    .ratio-card {
+
+    /* Main Content Area */
+    .main-canvas {
+      flex: 1;
+      padding: 18px 20px;
+      overflow-y: auto;
+      background: var(--canvas-bg);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Views */
+    .dashboard-view { display: none; }
+    .dashboard-view.active { display: flex; flex-direction: column; gap: 16px; }
+
+    /* Top KPI Cards (4 Horizontal Cards) */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .kpi-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 18px;
+      border-radius: 8px;
+      padding: 14px 16px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      position: relative;
     }
-    .ratio-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-    .ratio-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .ratio-badge {
-      font-size: 10px;
+    .kpi-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .kpi-card-title {
+      font-size: 13px;
       font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
+      color: #1e3a8a;
+      letter-spacing: 0.2px;
     }
-    .ratio-badge.good { background: var(--good-bg); color: var(--good); }
-    .ratio-badge.warn { background: var(--warn-bg); color: var(--warn); }
-    .ratio-badge.bad { background: var(--bad-bg); color: var(--bad); }
-    .ratio-value { font-size: 26px; font-weight: 800; color: #0f172a; margin: 8px 0 4px; }
-    .ratio-benchmark { font-size: 11px; color: var(--text-muted); }
-    .ratio-delta { font-size: 11px; font-weight: 600; margin-top: 4px; }
-    .delta-good { color: var(--good); }
-    .delta-bad { color: var(--bad); }
+    .kpi-card-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #eff6ff;
+      color: var(--primary-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kpi-card-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.1;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #2563eb;
+      letter-spacing: -0.5px;
+    }
+    .kpi-subtext {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .kpi-target-row {
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .kpi-progress-bar-bg {
+      height: 4px;
+      width: 100%;
+      background: #e2e8f0;
+      border-radius: 3px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .kpi-progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--amber-accent);
+      transition: width 0.3s ease;
+    }
 
-    /* Panels & Tables */
-    .section-title { font-size: 16px; font-weight: 700; margin: 0 0 14px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
-    .panel {
+    /* Middle Row: Two Combo Charts */
+    .middle-charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .chart-panel {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 24px;
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-header {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chart-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #1e293b;
+      letter-spacing: 0.1px;
+    }
+    .chart-box {
+      position: relative;
+      height: 230px;
+      width: 100%;
+    }
+
+    /* Bottom Row: Dynamic KPI Selector & Multi-Line Chart + OPEX Combo Chart */
+    .bottom-charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .kpi-selector-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .kpi-selector-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-right: 4px;
+    }
+    .kpi-pill {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #ffffff;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .kpi-pill:hover { background: #f1f5f9; }
+    .kpi-pill.active {
+      background: #1e293b;
+      color: #ffffff;
+      border-color: #1e293b;
+      font-weight: 700;
+    }
+
+    /* Tables (P&L & Monthly matrix) */
+    .table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
-    .pnl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pnl-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
     .pnl-table th {
       background: #f1f5f9;
-      padding: 10px 12px;
-      font-weight: 600;
+      padding: 9px 12px;
+      font-weight: 700;
       color: #334155;
       text-align: right;
       border-bottom: 2px solid var(--border);
     }
     .pnl-table th:first-child { text-align: left; }
     .pnl-table td {
-      padding: 8px 12px;
+      padding: 7px 12px;
       border-bottom: 1px solid #f1f5f9;
       text-align: right;
       font-variant-numeric: tabular-nums;
@@ -126,7 +444,7 @@
       text-transform: uppercase;
       font-size: 11px;
       letter-spacing: 0.5px;
-      padding-top: 14px;
+      padding-top: 12px;
     }
     .pnl-table tr.subtotal-row td {
       font-weight: 700;
@@ -136,19 +454,47 @@
     }
     .pnl-table tr.total-row td {
       font-weight: 800;
-      font-size: 14px;
+      font-size: 13.5px;
       border-top: 2px solid #0f172a;
       border-bottom: 2px solid #0f172a;
       background: #f0fdf4;
       color: #14532d;
     }
-    .pnl-table tr.indent td:first-child { padding-left: 28px; color: #475569; }
+    .pnl-table tr.indent td:first-child { padding-left: 26px; color: #475569; }
 
-    /* Visual Charts Grid */
-    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; margin-bottom: 24px; }
-    .chart-box { position: relative; height: 290px; width: 100%; }
+    /* Operational & Ratios Scorecards Grid */
+    .ratio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .ratio-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .ratio-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .ratio-val { font-size: 22px; font-weight: 800; color: #0f172a; margin: 4px 0; }
+    .ratio-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      display: inline-block;
+      width: fit-content;
+    }
+    .ratio-badge.good { background: #dcfce7; color: #16a34a; }
+    .ratio-badge.warn { background: #fef3c7; color: #d97706; }
+    .ratio-badge.bad { background: #fee2e2; color: #dc2626; }
 
-    /* State Banners */
+    /* Loading / Error Banners */
     .state-banner {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -157,11 +503,11 @@
       text-align: center;
       margin: 40px auto;
       max-width: 500px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
     .spinner {
       border: 3px solid #f3f3f3;
-      border-top: 3px solid var(--primary);
+      border-top: 3px solid var(--brand-blue);
       border-radius: 50%;
       width: 32px;
       height: 32px;
@@ -169,86 +515,325 @@
       margin: 0 auto 14px;
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      body { height: auto; overflow: auto; }
+      .dashboard-frame { height: auto; max-height: none; flex-direction: column; overflow: visible; }
+      .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 2px solid rgba(255,255,255,0.2); }
+      .main-canvas { height: auto; overflow: visible; }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .middle-charts-row, .bottom-charts-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .kpi-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
 
-  <div class="header">
-    <div>
-      <h2>F&amp;B Financial Statement &amp; Ratio Analysis</h2>
-      <div class="subtitle">Laporan Laba Rugi Komprehensif &amp; Benchmarking Rasio Keuangan F&amp;B</div>
-    </div>
-    <div class="controls" id="header-controls" style="display:none;">
-      <div class="control-group">
-        <label for="outlet-select">Outlet:</label>
-        <select id="outlet-select"></select>
+<div class="dashboard-frame">
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <!-- Brand / Header Card -->
+    <div class="brand-card">
+      <div class="brand-logo-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+          <line x1="6" y1="1" x2="6" y2="4"></line>
+          <line x1="10" y1="1" x2="10" y2="4"></line>
+          <line x1="14" y1="1" x2="14" y2="4"></line>
+        </svg>
       </div>
-      <div class="control-group">
-        <label for="month-select">Bulan:</label>
-        <select id="month-select"></select>
-      </div>
-      <div class="control-group" style="font-size: 11px;">
-        <span>Sync: <b id="sync-time">-</b></span>
-      </div>
-    </div>
-  </div>
-
-  <div id="loading-state" class="state-banner">
-    <div class="spinner"></div>
-    <div style="font-size: 14px; color: var(--text-muted); font-weight: 500;">Menyiapkan Laporan Keuangan dari Google Sheets...</div>
-  </div>
-
-  <div id="error-state" class="state-banner" style="display:none; border-color: #fecaca; background: #fff5f5;">
-    <div style="font-size: 18px; font-weight: 700; color: var(--bad); margin-bottom: 6px;">Gagal Memuat Laporan Keuangan</div>
-    <div id="error-message" style="font-size: 13px; color: #7f1d1d; margin-bottom: 12px;"></div>
-    <div style="font-size: 12px; color: var(--text-muted);">
-      Pastikan tab <b>PnL_Monthly</b> sudah terisi dengan menjalankan menu <b>F&amp;B Report &gt; Sync sekarang</b> di spreadsheet.
-    </div>
-  </div>
-
-  <div id="report-content" style="display:none;">
-
-    <!-- 1. FINANCIAL RATIOS SCORECARD -->
-    <div class="section-title">
-      <span>Rasio Finansial Utama F&amp;B (Key Restaurant Financial Ratios)</span>
-    </div>
-    <div class="ratio-grid" id="ratio-cards"></div>
-
-    <!-- 2. CHARTS OVERVIEW -->
-    <div class="charts-grid">
-      <div class="panel" style="margin-bottom:0;">
-        <div class="section-title" style="margin-bottom:8px;">Struktur Biaya &amp; Profitabilitas (12 Bulan)</div>
-        <div class="chart-box"><canvas id="cost-structure-chart"></canvas></div>
-      </div>
-      <div class="panel" style="margin-bottom:0;">
-        <div class="section-title" style="margin-bottom:8px;">Tren Rasio Finansial vs Benchmark F&amp;B</div>
-        <div class="chart-box"><canvas id="ratio-trend-chart"></canvas></div>
+      <div class="brand-text-block">
+        <div class="brand-title">
+          Nge-Meal<span class="brand-dot">.</span>
+        </div>
+        <div class="brand-subtitle">Financial Dashboard</div>
       </div>
     </div>
 
-    <!-- 3. FORMAL INCOME STATEMENT (P&L WATERFALL & COMMON-SIZE) -->
-    <div class="panel">
-      <div class="section-title">
-        <span>Laporan Laba Rugi Komprehensif (Income Statement &amp; Common-Size Analysis)</span>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="pnl-table" id="pnl-statement-table"></table>
+    <!-- Page Navigator Section -->
+    <div class="nav-section">
+      <div class="nav-section-title">Page Navigator</div>
+      <button class="nav-btn" data-view="view-rev-exp">Revenue &amp; Expenses</button>
+      <button class="nav-btn active" data-view="view-profit">Profit Breakdown</button>
+      <button class="nav-btn" data-view="view-income">Income Statement</button>
+    </div>
+
+    <!-- Select Business Line (Outlets) -->
+    <div class="nav-section">
+      <div class="nav-section-title">Select Business Line</div>
+      <div class="outlet-btn-group" id="sidebar-outlet-list">
+        <!-- Injected dynamically from data -->
+        <button class="outlet-btn active" data-outlet="ALL">Semua Outlet (ALL)</button>
       </div>
     </div>
 
-    <!-- 4. HISTORICAL 12-MONTH TRAJECTORY TABLE -->
-    <div class="panel">
-      <div class="section-title">
-        <span>Ringkasan Trajektori Finansial Bulanan (12-Month Performance Matrix)</span>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="pnl-table" id="monthly-summary-table"></table>
+    <!-- Month / Period Selector -->
+    <div class="nav-section">
+      <div class="period-control">
+        <label for="select-month">Fokus Periode (Bulan)</label>
+        <select id="select-month" class="period-select"></select>
       </div>
     </div>
 
-  </div>
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div>Data Status: <b id="sync-status">Tersinkron</b></div>
+      <div style="font-size:10px; color:#bfdbfe; margin-top:2px;">Sync: <span id="sync-time">-</span></div>
+    </div>
+  </aside>
+
+  <!-- MAIN CANVAS -->
+  <main class="main-canvas">
+    <!-- Loading State -->
+    <div id="loading-state" class="state-banner">
+      <div class="spinner"></div>
+      <div style="font-size: 14px; font-weight: 600; color: #1e3a8a;">Memuat Data Finansial F&amp;B...</div>
+      <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Membaca data PnL bulanan &amp; ratio metrics</div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="state-banner" style="display:none; border-color: #fecaca; background: #fff5f5;">
+      <div style="font-size: 16px; font-weight: 800; color: var(--bad); margin-bottom: 6px;">Gagal Memuat Laporan Keuangan</div>
+      <div id="error-message" style="font-size: 13px; color: #7f1d1d; margin-bottom: 12px;"></div>
+      <div style="font-size: 12px; color: var(--text-muted);">
+        Pastikan tab <b>PnL_Monthly</b> sudah terisi melalui menu <b>F&amp;B Report &gt; Sync sekarang</b> di Spreadsheet.
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 1: PROFIT BREAKDOWN (Exact match of attached screenshot) -->
+    <!-- ============================================================== -->
+    <div id="view-profit" class="dashboard-view active">
+      <!-- 4 TOP KPI CARDS -->
+      <div class="kpi-row" id="kpi-cards-row">
+        <!-- Card 1: Revenue -->
+        <div class="kpi-card" id="card-revenue">
+          <div>
+            <div class="kpi-card-header">
+              <span class="kpi-card-title">Revenue</span>
+              <div class="kpi-card-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-card-value" id="val-rev">Rp 0</div>
+          </div>
+          <div>
+            <div class="kpi-subtext">
+              <span>Revenue Last Month:</span>
+              <b id="sub-rev-prev">Rp 0</b>
+            </div>
+            <div class="kpi-target-row">
+              <span id="target-rev-label" style="color:var(--text-muted);">MoM Growth:</span>
+              <span id="target-rev-val" style="color:var(--good);">0.0% ↑</span>
+            </div>
+            <div class="kpi-progress-bar-bg">
+              <div class="kpi-progress-bar-fill" id="prog-rev" style="background:#f59e0b; width:75%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Expense -->
+        <div class="kpi-card" id="card-expense">
+          <div>
+            <div class="kpi-card-header">
+              <span class="kpi-card-title">Expense</span>
+              <div class="kpi-card-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <line x1="2" y1="10" x2="22" y2="10"></line>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-card-value" id="val-exp">Rp 0</div>
+          </div>
+          <div>
+            <div class="kpi-subtext">
+              <span>Expense Last Month:</span>
+              <b id="sub-exp-prev">Rp 0</b>
+            </div>
+            <div class="kpi-target-row">
+              <span style="color:var(--text-muted);">Rasio Beban:</span>
+              <span id="target-exp-val" style="color:#2563eb;">0.0%</span>
+            </div>
+            <div class="kpi-progress-bar-bg">
+              <div class="kpi-progress-bar-fill" id="prog-exp" style="background:#ef4444; width:65%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Gross Profit -->
+        <div class="kpi-card" id="card-gp">
+          <div>
+            <div class="kpi-card-header">
+              <span class="kpi-card-title">Gross Profit</span>
+              <div class="kpi-card-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                  <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-card-value" id="val-gp">Rp 0</div>
+          </div>
+          <div>
+            <div class="kpi-subtext">
+              <span>GP Last Month:</span>
+              <b id="sub-gp-prev">Rp 0</b>
+            </div>
+            <div class="kpi-target-row">
+              <span style="color:var(--text-muted);">Margin Target: &gt;65%</span>
+              <span id="target-gp-val" style="color:var(--good);">0.0% ↑</span>
+            </div>
+            <div class="kpi-progress-bar-bg">
+              <div class="kpi-progress-bar-fill" id="prog-gp" style="background:#10b981; width:80%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Net Profit (EBITDA) -->
+        <div class="kpi-card" id="card-np">
+          <div>
+            <div class="kpi-card-header">
+              <span class="kpi-card-title">Net Profit (EBITDA)</span>
+              <div class="kpi-card-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                  <line x1="8" y1="6" x2="16" y2="6"></line>
+                  <line x1="16" y1="14" x2="16" y2="18"></line>
+                  <line x1="8" y1="14" x2="8" y2="14.01"></line>
+                  <line x1="12" y1="14" x2="12" y2="14.01"></line>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-card-value" id="val-np">Rp 0</div>
+          </div>
+          <div>
+            <div class="kpi-subtext">
+              <span>NP Last Month:</span>
+              <b id="sub-np-prev">Rp 0</b>
+            </div>
+            <div class="kpi-target-row">
+              <span style="color:var(--text-muted);">Margin Target: &gt;18%</span>
+              <span id="target-np-val" style="color:var(--good);">0.0% ↑</span>
+            </div>
+            <div class="kpi-progress-bar-bg">
+              <div class="kpi-progress-bar-fill" id="prog-np" style="background:#2563eb; width:70%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MIDDLE ROW: TWO COMBO CHARTS (BAR + LINE MARGIN WITH LABELS) -->
+      <div class="middle-charts-row">
+        <!-- Combo Chart 1: Gross Profit & Gross Profit Margin by Months -->
+        <div class="chart-panel">
+          <div class="chart-header">
+            <span class="chart-title">Gross Profit and Gross Profit Margin by Months</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="gp-combo-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Combo Chart 2: Net Profit & Net Profit Margin by Months -->
+        <div class="chart-panel">
+          <div class="chart-header">
+            <span class="chart-title">Net Profit and Net Profit Margin by Months</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="np-combo-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM ROW: DYNAMIC KPI SELECTOR MULTI-LINE + OPEX COMBO CHART -->
+      <div class="bottom-charts-row">
+        <!-- Interactive Multi-Line Chart by Selected KPI -->
+        <div class="chart-panel">
+          <div class="kpi-selector-bar">
+            <span class="kpi-selector-label">Select KPI</span>
+            <button class="kpi-pill active" data-kpi="net_sales">Rev</button>
+            <button class="kpi-pill" data-kpi="total_expense">Exp</button>
+            <button class="kpi-pill" data-kpi="gross_profit">GP</button>
+            <button class="kpi-pill" data-kpi="gross_margin_pct">GP Margin</button>
+            <button class="kpi-pill" data-kpi="ebitda">EBIT</button>
+            <button class="kpi-pill" data-kpi="ebitda_margin_pct">NP Margin</button>
+          </div>
+          <div class="chart-header" style="margin-bottom:6px;">
+            <span class="chart-title" id="kpi-trend-title">Rev by Months and Business Line</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="kpi-multi-line-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Combo Chart 3: Operating Expense & OPEX Ratio by Months -->
+        <div class="chart-panel">
+          <div class="chart-header">
+            <span class="chart-title">Operating Expense &amp; OPEX Ratio by Months</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="ebit-combo-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 2: REVENUE & EXPENSES (Operational Cost Structure Deep Dive) -->
+    <!-- ============================================================== -->
+    <div id="view-rev-exp" class="dashboard-view">
+      <!-- Operational Ratio Scorecards -->
+      <div class="ratio-grid" id="rev-exp-ratios"></div>
+
+      <!-- Cost Structure Stacked Chart -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <span class="chart-title">Struktur Biaya Operasional (12 Bulan)</span>
+        </div>
+        <div class="chart-box" style="height: 280px;">
+          <canvas id="cost-structure-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Historical Trajectory Table -->
+      <div class="table-container">
+        <div class="table-title">Trajektori Kinerja Finansial 12 Bulan Terakhir</div>
+        <div style="overflow-x:auto;">
+          <table class="pnl-table" id="monthly-summary-table"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 3: INCOME STATEMENT (Formal Waterfall Statement) -->
+    <!-- ============================================================== -->
+    <div id="view-income" class="dashboard-view">
+      <div class="table-container">
+        <div class="table-title">
+          <span>Laporan Laba Rugi Komprehensif (Income Statement &amp; Common-Size Analysis)</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="pnl-table" id="pnl-statement-table"></table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
 
 <script>
+  // =========================================================================
+  // Formatting Utilities
+  // =========================================================================
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -259,19 +844,90 @@
       .replace(/'/g, '&#39;');
   }
 
-  const fmtRp = v => (v === '' || v === null || v === undefined || isNaN(v) ? 'Rp 0' : 'Rp ' + Math.round(Number(v)).toLocaleString('id-ID'));
-  const fmtPct = v => (v === '' || v === null || v === undefined || isNaN(v) ? '-' : Number(v).toFixed(2) + '%');
-  const fmtInt = v => (v === '' || v === null || v === undefined || isNaN(v) ? '0' : Math.round(Number(v)).toLocaleString('id-ID'));
-  const isCompleteMonth = r => r && (r.is_complete_month === true || String(r.is_complete_month).toLowerCase() === 'true');
+  function fmtCompactRp(val) {
+    if (val === null || val === undefined || isNaN(val)) return 'Rp 0';
+    const num = Number(val);
+    const abs = Math.abs(num);
+    const sign = num < 0 ? '-' : '';
+    if (abs >= 1e9) {
+      return sign + 'Rp ' + (abs / 1e9).toFixed(2) + 'M';
+    } else if (abs >= 1e6) {
+      return sign + 'Rp ' + (abs / 1e6).toFixed(2) + 'M';
+    } else if (abs >= 1e3) {
+      return sign + 'Rp ' + (abs / 1e3).toFixed(0) + 'K';
+    }
+    return sign + 'Rp ' + Math.round(abs).toLocaleString('id-ID');
+  }
 
+  function fmtRp(v) {
+    if (v === '' || v === null || v === undefined || isNaN(v)) return 'Rp 0';
+    return 'Rp ' + Math.round(Number(v)).toLocaleString('id-ID');
+  }
+
+  function fmtPct(v) {
+    if (v === '' || v === null || v === undefined || isNaN(v)) return '0.00%';
+    return Number(v).toFixed(2) + '%';
+  }
+
+  function fmtMonthShort(mStr) {
+    if (!mStr) return '';
+    const parts = String(mStr).split('-');
+    if (parts.length >= 2) {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const mIdx = parseInt(parts[1], 10) - 1;
+      if (mIdx >= 0 && mIdx < 12) {
+        return monthNames[mIdx];
+      }
+    }
+    return mStr;
+  }
+
+  // =========================================================================
+  // Chart.js Plugin Registration
+  // =========================================================================
+  if (typeof ChartDataLabels !== 'undefined') {
+    Chart.register(ChartDataLabels);
+    // Set default datalabels to false so bar charts are not cluttered
+    Chart.defaults.set('plugins.datalabels', { display: false });
+  }
+
+  // State Management
   let RAW_DATA = null;
-  let costStructureChart = null;
-  let ratioTrendChart = null;
+  let SELECTED_OUTLET = 'ALL';
+  let SELECTED_MONTH = '';
+  let SELECTED_KPI = 'net_sales';
 
-  google.script.run
-    .withSuccessHandler(onDataLoaded)
-    .withFailureHandler(onDataError)
-    .getDashboardData();
+  // Chart instances
+  let gpComboChart = null;
+  let npComboChart = null;
+  let kpiMultiLineChart = null;
+  let ebitComboChart = null;
+  let costStructureChart = null;
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', () => {
+    setupTabNavigation();
+    setupKpiSelector();
+    fetchData();
+  });
+
+  // =========================================================================
+  // Data Loading (Apps Script google.script.run with Mock Fallback for preview)
+  // =========================================================================
+  function fetchData() {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onDataError)
+        .getDashboardData();
+    } else {
+      // Standalone preview fallback (uses realistic data based on actual schema)
+      console.warn('Running outside Google Apps Script: Using fallback dataset for local preview.');
+      setTimeout(() => {
+        onDataLoaded(getMockData());
+      }, 300);
+    }
+  }
 
   function onDataError(err) {
     document.getElementById('loading-state').style.display = 'none';
@@ -285,12 +941,9 @@
 
     if (!d || !d.pnl || d.pnl.length === 0) {
       document.getElementById('error-state').style.display = 'block';
-      document.getElementById('error-message').textContent = 'Tidak ditemukan data PnL di spreadsheet. Jalankan Sync sekarang terlebih dahulu.';
+      document.getElementById('error-message').textContent = 'Tidak ditemukan data PnL di spreadsheet. Jalankan "Sync sekarang" terlebih dahulu.';
       return;
     }
-
-    document.getElementById('header-controls').style.display = 'flex';
-    document.getElementById('report-content').style.display = 'block';
 
     // Sync timestamp
     const syncEl = document.getElementById('sync-time');
@@ -298,168 +951,649 @@
       const dt = new Date(d.lastSync);
       syncEl.textContent = isNaN(dt.getTime()) ? d.lastSync : dt.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
     } else {
-      syncEl.textContent = '-';
+      syncEl.textContent = 'Hari ini';
     }
 
-    // Populate Outlets
-    const outlets = [...new Set(d.pnl.map(r => r.outlet || 'ALL'))].sort((a, b) => a === 'ALL' ? -1 : a.localeCompare(b));
-    const outletSel = document.getElementById('outlet-select');
-    outletSel.innerHTML = outlets.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o === 'ALL' ? 'ALL (Konsolidasi)' : o)}</option>`).join('');
-    outletSel.onchange = onFilterChange;
+    // Populate Outlets in Sidebar
+    populateOutletButtons();
 
     // Populate Months
     updateMonthSelector();
-    renderReport();
+
+    // Render active dashboard
+    renderAll();
+  }
+
+  // =========================================================================
+  // Navigation & UI Controls
+  // =========================================================================
+  function setupTabNavigation() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        navButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const targetViewId = btn.getAttribute('data-view');
+        document.querySelectorAll('.dashboard-view').forEach(v => v.classList.remove('active'));
+        const targetView = document.getElementById(targetViewId);
+        if (targetView) targetView.classList.add('active');
+
+        // Trigger chart resize if needed
+        setTimeout(renderAll, 50);
+      });
+    });
+  }
+
+  function populateOutletButtons() {
+    const outlets = [...new Set(RAW_DATA.pnl.map(r => r.outlet || 'ALL'))]
+      .filter(o => o && o !== '')
+      .sort((a, b) => a === 'ALL' ? -1 : (b === 'ALL' ? 1 : a.localeCompare(b)));
+
+    const container = document.getElementById('sidebar-outlet-list');
+    container.innerHTML = outlets.map(o => {
+      const label = o === 'ALL' ? 'Semua Outlet (ALL)' : o;
+      return `<button class="outlet-btn ${o === SELECTED_OUTLET ? 'active' : ''}" data-outlet="${escapeHtml(o)}">${escapeHtml(label)}</button>`;
+    }).join('');
+
+    container.querySelectorAll('.outlet-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('.outlet-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        SELECTED_OUTLET = btn.getAttribute('data-outlet');
+        updateMonthSelector();
+        renderAll();
+      });
+    });
   }
 
   function updateMonthSelector() {
-    const outlet = document.getElementById('outlet-select').value;
-    const months = [...new Set(RAW_DATA.pnl.filter(r => (r.outlet || 'ALL') === outlet).map(r => r.month))].sort().reverse();
-    const monthSel = document.getElementById('month-select');
-    monthSel.innerHTML = months.map((m, idx) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}${idx === 0 ? ' (Terbaru)' : ''}</option>`).join('');
-    monthSel.onchange = renderReport;
+    const outletData = RAW_DATA.pnl.filter(r => (r.outlet || 'ALL') === SELECTED_OUTLET);
+    const months = [...new Set(outletData.map(r => r.month))].filter(Boolean).sort().reverse();
+    const sel = document.getElementById('select-month');
+
+    if (months.length > 0) {
+      if (!months.includes(SELECTED_MONTH)) {
+        SELECTED_MONTH = months[0];
+      }
+      sel.innerHTML = months.map(m => `<option value="${escapeHtml(m)}" ${m === SELECTED_MONTH ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
+    } else {
+      sel.innerHTML = `<option value="">-</option>`;
+      SELECTED_MONTH = '';
+    }
+
+    sel.onchange = (e) => {
+      SELECTED_MONTH = e.target.value;
+      renderAll();
+    };
   }
 
-  function onFilterChange() {
-    updateMonthSelector();
-    renderReport();
+  function setupKpiSelector() {
+    const pills = document.querySelectorAll('.kpi-pill');
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        SELECTED_KPI = pill.getAttribute('data-kpi');
+        const labels = {
+          'net_sales': 'Rev',
+          'total_expense': 'Exp',
+          'gross_profit': 'GP',
+          'gross_margin_pct': 'GP Margin',
+          'ebitda': 'EBIT',
+          'ebitda_margin_pct': 'NP Margin'
+        };
+        const titleEl = document.getElementById('kpi-trend-title');
+        if (titleEl) {
+          titleEl.textContent = `${labels[SELECTED_KPI] || SELECTED_KPI} by Months and Business Line`;
+        }
+        renderKpiMultiLineChart();
+      });
+    });
   }
 
-  function renderReport() {
-    const selectedOutlet = document.getElementById('outlet-select').value;
-    const selectedMonth = document.getElementById('month-select').value;
+  // =========================================================================
+  // Master Render Function
+  // =========================================================================
+  function renderAll() {
+    if (!RAW_DATA || !RAW_DATA.pnl) return;
 
+    // Filter data for selected outlet, sorted ascending by month
     const outletData = RAW_DATA.pnl
-      .filter(r => (r.outlet || 'ALL') === selectedOutlet)
+      .filter(r => (r.outlet || 'ALL') === SELECTED_OUTLET)
       .sort((a, b) => (a.month || '').localeCompare(b.month || ''));
 
-    const curIndex = outletData.findIndex(r => r.month === selectedMonth);
+    if (outletData.length === 0) return;
+
+    const curIndex = outletData.findIndex(r => r.month === SELECTED_MONTH);
     const cur = curIndex >= 0 ? outletData[curIndex] : (outletData[outletData.length - 1] || {});
     const prev = curIndex > 0 ? outletData[curIndex - 1] : {};
 
-    renderRatioScorecard(cur, prev);
+    // 1. Profit Breakdown View
+    renderKpiCards(cur, prev);
+    renderComboCharts(outletData);
+    renderKpiMultiLineChart();
+
+    // 2. Revenue & Expenses View
+    renderOperationalRatios(cur, prev);
+    renderCostStructureChart(outletData);
+    renderMonthlyTrajectoryTable(outletData);
+
+    // 3. Income Statement View
     renderIncomeStatement(cur, prev);
-    renderCharts(outletData);
-    renderMonthlySummary(outletData);
   }
 
-  function renderRatioScorecard(cur, prev) {
-    const ns = Number(cur.net_sales || 0);
+  // =========================================================================
+  // View 1: Top 4 KPI Cards
+  // =========================================================================
+  function renderKpiCards(cur, prev) {
+    const rev = Number(cur.net_sales || 0);
+    const prevRev = Number(prev.net_sales || 0);
+    const costSales = Number(cur.cost_of_sales || 0);
+    const opex = Number(cur.total_opex || 0);
+    const exp = costSales + opex;
+    const prevCostSales = Number(prev.cost_of_sales || 0);
+    const prevOpex = Number(prev.total_opex || 0);
+    const prevExp = prevCostSales + prevOpex;
+
+    const gp = Number(cur.gross_profit || (rev - costSales));
+    const prevGp = Number(prev.gross_profit || (prevRev - prevCostSales));
+    const gpMargin = Number(cur.gross_margin_pct || (rev > 0 ? (gp / rev) * 100 : 0));
+
+    const np = Number(cur.ebitda || (gp - opex));
+    const prevNp = Number(prev.ebitda || (prevGp - prevOpex));
+    const npMargin = Number(cur.ebitda_margin_pct || (rev > 0 ? (np / rev) * 100 : 0));
+
+    // Card 1: Revenue
+    document.getElementById('val-rev').textContent = fmtCompactRp(rev);
+    document.getElementById('sub-rev-prev').textContent = prevRev > 0 ? fmtCompactRp(prevRev) : '-';
+    if (prevRev > 0) {
+      const dRevPct = ((rev - prevRev) / prevRev) * 100;
+      const sign = dRevPct >= 0 ? '+' : '';
+      const el = document.getElementById('target-rev-val');
+      el.textContent = `${sign}${dRevPct.toFixed(1)}% ${dRevPct >= 0 ? '↑' : '↓'}`;
+      el.style.color = dRevPct >= 0 ? 'var(--good)' : 'var(--bad)';
+      document.getElementById('prog-rev').style.width = Math.min(Math.max((rev / prevRev) * 100, 10), 100) + '%';
+    } else {
+      document.getElementById('target-rev-val').textContent = 'Baseline';
+      document.getElementById('prog-rev').style.width = '100%';
+    }
+
+    // Card 2: Expense
+    document.getElementById('val-exp').textContent = fmtCompactRp(exp);
+    document.getElementById('sub-exp-prev').textContent = prevExp > 0 ? fmtCompactRp(prevExp) : '-';
+    const expRatio = rev > 0 ? (exp / rev) * 100 : 0;
+    const expEl = document.getElementById('target-exp-val');
+    expEl.textContent = `${expRatio.toFixed(1)}% dari Rev`;
+    expEl.style.color = expRatio <= 80 ? 'var(--good)' : 'var(--warn)';
+    document.getElementById('prog-exp').style.width = Math.min(Math.max(expRatio, 10), 100) + '%';
+
+    // Card 3: Gross Profit
+    document.getElementById('val-gp').textContent = fmtCompactRp(gp);
+    document.getElementById('sub-gp-prev').textContent = prevGp > 0 ? fmtCompactRp(prevGp) : '-';
+    const gpEl = document.getElementById('target-gp-val');
+    gpEl.textContent = `${gpMargin.toFixed(1)}% ${gpMargin >= 65 ? '↑' : '↓'}`;
+    gpEl.style.color = gpMargin >= 65 ? 'var(--good)' : 'var(--warn)';
+    document.getElementById('prog-gp').style.width = Math.min(Math.max((gpMargin / 75) * 100, 10), 100) + '%';
+
+    // Card 4: Net Profit (EBITDA)
+    document.getElementById('val-np').textContent = fmtCompactRp(np);
+    document.getElementById('sub-np-prev').textContent = prevNp > 0 ? fmtCompactRp(prevNp) : '-';
+    const npEl = document.getElementById('target-np-val');
+    npEl.textContent = `${npMargin.toFixed(1)}% ${npMargin >= 18 ? '↑' : '↓'}`;
+    npEl.style.color = npMargin >= 18 ? 'var(--good)' : 'var(--warn)';
+    document.getElementById('prog-np').style.width = Math.min(Math.max((npMargin / 30) * 100, 10), 100) + '%';
+  }
+
+  // =========================================================================
+  // View 1: Combo Charts (Dual-Axis with On-Chart % Data Labels)
+  // =========================================================================
+  function renderComboCharts(data) {
+    const labels = data.map(r => fmtMonthShort(r.month));
+
+    // 1. Gross Profit & GP Margin Combo Chart
+    const gpValues = data.map(r => Number(r.gross_profit || 0));
+    const gpMargins = data.map(r => Number(r.gross_margin_pct || 0));
+
+    if (gpComboChart) gpComboChart.destroy();
+    gpComboChart = new Chart(document.getElementById('gp-combo-chart'), {
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Gross Profit',
+            data: gpValues,
+            backgroundColor: '#10b981',
+            borderRadius: 3,
+            yAxisID: 'y',
+            datalabels: { display: false }
+          },
+          {
+            type: 'line',
+            label: 'Gross Profit Margin',
+            data: gpMargins,
+            borderColor: '#334155',
+            backgroundColor: '#334155',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            yAxisID: 'y1',
+            tension: 0.1,
+            datalabels: {
+              display: true,
+              align: 'top',
+              offset: 3,
+              color: '#334155',
+              font: { size: 9, weight: '700' },
+              formatter: v => v != null && !isNaN(v) ? Number(v).toFixed(1) + '%' : ''
+            }
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: '600' } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.type === 'line' ? `${ctx.dataset.label}: ${fmtPct(ctx.raw)}` : `${ctx.dataset.label}: ${fmtCompactRp(ctx.raw)}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            position: 'left',
+            grid: { color: '#f1f5f9' },
+            ticks: { callback: v => fmtCompactRp(v), font: { size: 10 } }
+          },
+          y1: {
+            position: 'right',
+            grid: { display: false },
+            ticks: { callback: v => v + '%', font: { size: 10 } },
+            suggestedMin: 40,
+            suggestedMax: 85
+          }
+        }
+      }
+    });
+
+    // 2. Net Profit & NP Margin Combo Chart
+    const npValues = data.map(r => Number(r.ebitda || 0));
+    const npMargins = data.map(r => Number(r.ebitda_margin_pct || 0));
+
+    if (npComboChart) npComboChart.destroy();
+    npComboChart = new Chart(document.getElementById('np-combo-chart'), {
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Net Profit (EBITDA)',
+            data: npValues,
+            backgroundColor: '#2563eb',
+            borderRadius: 3,
+            yAxisID: 'y',
+            datalabels: { display: false }
+          },
+          {
+            type: 'line',
+            label: 'Net Profit Margin',
+            data: npMargins,
+            borderColor: '#334155',
+            backgroundColor: '#334155',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            yAxisID: 'y1',
+            tension: 0.1,
+            datalabels: {
+              display: true,
+              align: 'top',
+              offset: 3,
+              color: '#334155',
+              font: { size: 9, weight: '700' },
+              formatter: v => v != null && !isNaN(v) ? Number(v).toFixed(1) + '%' : ''
+            }
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: '600' } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.type === 'line' ? `${ctx.dataset.label}: ${fmtPct(ctx.raw)}` : `${ctx.dataset.label}: ${fmtCompactRp(ctx.raw)}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            position: 'left',
+            grid: { color: '#f1f5f9' },
+            ticks: { callback: v => fmtCompactRp(v), font: { size: 10 } }
+          },
+          y1: {
+            position: 'right',
+            grid: { display: false },
+            ticks: { callback: v => v + '%', font: { size: 10 } },
+            suggestedMin: 0,
+            suggestedMax: 40
+          }
+        }
+      }
+    });
+
+    // 3. Operating Expense & OPEX Ratio Combo Chart (Bottom-right)
+    const opexValues = data.map(r => Number(r.total_opex || 0));
+    const opexRatios = data.map(r => Number(r.opex_ratio_pct || 0));
+
+    if (ebitComboChart) ebitComboChart.destroy();
+    ebitComboChart = new Chart(document.getElementById('ebit-combo-chart'), {
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Operating Expense',
+            data: opexValues,
+            backgroundColor: '#3b82f6',
+            borderRadius: 3,
+            yAxisID: 'y',
+            datalabels: { display: false }
+          },
+          {
+            type: 'line',
+            label: 'OPEX Ratio %',
+            data: opexRatios,
+            borderColor: '#334155',
+            backgroundColor: '#334155',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            yAxisID: 'y1',
+            tension: 0.1,
+            datalabels: {
+              display: true,
+              align: 'top',
+              offset: 3,
+              color: '#334155',
+              font: { size: 9, weight: '700' },
+              formatter: v => v != null && !isNaN(v) ? Number(v).toFixed(1) + '%' : ''
+            }
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: '600' } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.type === 'line' ? `${ctx.dataset.label}: ${fmtPct(ctx.raw)}` : `${ctx.dataset.label}: ${fmtCompactRp(ctx.raw)}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            position: 'left',
+            grid: { color: '#f1f5f9' },
+            ticks: { callback: v => fmtCompactRp(v), font: { size: 10 } }
+          },
+          y1: {
+            position: 'right',
+            grid: { display: false },
+            ticks: { callback: v => v + '%', font: { size: 10 } },
+            suggestedMin: 15,
+            suggestedMax: 60
+          }
+        }
+      }
+    });
+  }
+
+  // =========================================================================
+  // View 1: Interactive KPI Multi-Line Chart (Bottom-Left)
+  // =========================================================================
+  function renderKpiMultiLineChart() {
+    if (!RAW_DATA || !RAW_DATA.pnl) return;
+
+    // Months sequence from ALL outlet data
+    const allMonths = [...new Set(RAW_DATA.pnl.map(r => r.month))].filter(Boolean).sort();
+    const monthLabels = allMonths.map(m => fmtMonthShort(m));
+
+    // Get individual outlets (exclude 'ALL')
+    let targetOutlets = [...new Set(RAW_DATA.pnl.map(r => r.outlet))].filter(o => o && o !== 'ALL').sort();
+    if (targetOutlets.length === 0) targetOutlets = ['ALL'];
+
+    const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+    const isPct = SELECTED_KPI.includes('pct') || SELECTED_KPI.includes('margin');
+
+    const datasets = targetOutlets.map((outletName, idx) => {
+      const color = colors[idx % colors.length];
+      const oRows = RAW_DATA.pnl.filter(r => (r.outlet || 'ALL') === outletName);
+      const rowMap = {};
+      oRows.forEach(r => { rowMap[r.month] = r; });
+
+      const dataPoints = allMonths.map(m => {
+        const row = rowMap[m];
+        if (!row) return 0;
+        if (SELECTED_KPI === 'total_expense') {
+          return Number(row.cost_of_sales || 0) + Number(row.total_opex || 0);
+        }
+        return Number(row[SELECTED_KPI] || 0);
+      });
+
+      // Highlight selected outlet if not ALL
+      const isSelected = SELECTED_OUTLET === 'ALL' || SELECTED_OUTLET === outletName;
+
+      return {
+        label: outletName,
+        data: dataPoints,
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: isSelected ? 2.5 : 1.5,
+        borderDash: isSelected ? [] : [3, 3],
+        tension: 0.35,
+        pointRadius: isSelected ? 3.5 : 2,
+        datalabels: { display: false }
+      };
+    });
+
+    if (kpiMultiLineChart) kpiMultiLineChart.destroy();
+    kpiMultiLineChart = new Chart(document.getElementById('kpi-multi-line-chart'), {
+      type: 'line',
+      data: {
+        labels: monthLabels,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11, weight: '600' } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${isPct ? fmtPct(ctx.raw) : fmtCompactRp(ctx.raw)}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            grid: { color: '#f1f5f9' },
+            ticks: {
+              callback: v => isPct ? v + '%' : fmtCompactRp(v),
+              font: { size: 10 }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // =========================================================================
+  // View 2: Revenue & Expenses (Cost Breakdown & Trajectory)
+  // =========================================================================
+  function renderOperationalRatios(cur, prev) {
     const primePct = Number(cur.prime_cost_pct || 0);
-    const grossMarginPct = Number(cur.gross_margin_pct || 0);
     const foodCostPct = Number(cur.food_cost_pct || 0);
     const laborCostPct = Number(cur.labor_cost_pct || 0);
     const opexRatioPct = Number(cur.opex_ratio_pct || 0);
-    const ebitdaMarginPct = Number(cur.ebitda_margin_pct || 0);
     const wastePct = Number(cur.waste_pct || 0);
-    const aov = Number(cur.avg_order_value || (cur.order_count ? ns / cur.order_count : 0));
+    const aov = Number(cur.avg_order_value || (cur.order_count ? Number(cur.net_sales || 0) / cur.order_count : 0));
 
-    const cardDef = [
+    const defs = [
       {
-        title: 'Prime Cost % (COGS + Labor)',
-        val: primePct,
-        isPct: true,
-        benchmark: 'Target F&B: < 55.0% - 60.0%',
+        title: 'Prime Cost % (COGS + Upah)',
+        val: fmtPct(primePct),
         badge: primePct <= 55 ? ['Optimal', 'good'] : (primePct <= 60 ? ['Waspada', 'warn'] : ['Bahaya', 'bad']),
-        prevVal: Number(prev.prime_cost_pct || 0),
-        higherIsBad: true,
-      },
-      {
-        title: 'Gross Margin %',
-        val: grossMarginPct,
-        isPct: true,
-        benchmark: 'Target F&B: > 65.0% - 70.0%',
-        badge: grossMarginPct >= 68 ? ['Kuat', 'good'] : (grossMarginPct >= 62 ? ['Wajar', 'warn'] : ['Rendah', 'bad']),
-        prevVal: Number(prev.gross_margin_pct || 0),
-        higherIsBad: false,
+        desc: 'Benchmark F&B: < 60%'
       },
       {
         title: 'Food Cost % (Actual COGS)',
-        val: foodCostPct,
-        isPct: true,
-        benchmark: 'Target F&B: 28.0% - 32.0%',
-        badge: foodCostPct <= 32 ? ['Optimal', 'good'] : (foodCostPct <= 35 ? ['Waspada', 'warn'] : ['Tinggi', 'bad']),
-        prevVal: Number(prev.food_cost_pct || 0),
-        higherIsBad: true,
+        val: fmtPct(foodCostPct),
+        badge: foodCostPct <= 32 ? ['Optimal', 'good'] : ['Tinggi', 'warn'],
+        desc: 'Benchmark F&B: 28% - 32%'
       },
       {
         title: 'Labor Cost % (Upah Toko)',
-        val: laborCostPct,
-        isPct: true,
-        benchmark: 'Target F&B: 18.0% - 24.0%',
-        badge: laborCostPct <= 24 ? ['Efisien', 'good'] : (laborCostPct <= 28 ? ['Waspada', 'warn'] : ['Overstaff', 'bad']),
-        prevVal: Number(prev.labor_cost_pct || 0),
-        higherIsBad: true,
+        val: fmtPct(laborCostPct),
+        badge: laborCostPct <= 24 ? ['Efisien', 'good'] : ['Waspada', 'warn'],
+        desc: 'Benchmark F&B: 18% - 24%'
       },
       {
-        title: 'Operating Expense Ratio (OER)',
-        val: opexRatioPct,
-        isPct: true,
-        benchmark: 'Target F&B: < 45.0% dari Net Sales',
+        title: 'Operating Expense Ratio',
+        val: fmtPct(opexRatioPct),
         badge: opexRatioPct <= 45 ? ['Terkontrol', 'good'] : ['Tinggi', 'warn'],
-        prevVal: Number(prev.opex_ratio_pct || 0),
-        higherIsBad: true,
+        desc: 'Total OPEX / Net Sales'
       },
       {
-        title: 'Store EBITDA Margin %',
-        val: ebitdaMarginPct,
-        isPct: true,
-        benchmark: 'Target F&B: > 15.0% - 20.0%',
-        badge: ebitdaMarginPct >= 18 ? ['Sangat Sehat', 'good'] : (ebitdaMarginPct >= 10 ? ['Cukup', 'warn'] : ['Kritis', 'bad']),
-        prevVal: Number(prev.ebitda_margin_pct || 0),
-        higherIsBad: false,
-      },
-      {
-        title: 'Waste & Spoilage Ratio %',
-        val: wastePct,
-        isPct: true,
-        benchmark: 'Target F&B: < 2.0% dari Net Sales',
-        badge: wastePct <= 2.0 ? ['Minim', 'good'] : (wastePct <= 3.5 ? ['Perlu Cek', 'warn'] : ['Bocor', 'bad']),
-        prevVal: Number(prev.waste_pct || 0),
-        higherIsBad: true,
+        title: 'Waste & Spoilage Ratio',
+        val: fmtPct(wastePct),
+        badge: wastePct <= 2.0 ? ['Minim', 'good'] : ['Perlu Cek', 'warn'],
+        desc: 'Bocor & bahan terbuang'
       },
       {
         title: 'Average Order Value (AOV)',
-        val: aov,
-        isPct: false,
-        benchmark: `Volume: ${fmtInt(cur.order_count || 0)} transaksi`,
+        val: fmtRp(aov),
         badge: ['Basket Size', 'good'],
-        prevVal: Number(prev.avg_order_value || (prev.order_count ? Number(prev.net_sales || 0) / prev.order_count : 0)),
-        higherIsBad: false,
+        desc: `${Math.round(Number(cur.order_count || 0)).toLocaleString('id-ID')} transaksi`
       }
     ];
 
-    const hasPrev = prev && prev.month !== undefined;
-    document.getElementById('ratio-cards').innerHTML = cardDef.map(c => {
-      const d = hasPrev ? c.val - c.prevVal : 0;
-      let dTxt = 'Bulan awal';
-      let dCls = '';
-      if (hasPrev) {
-        const sign = d >= 0 ? '+' : '';
-        dTxt = c.isPct ? `${sign}${d.toFixed(2)} pp MoM` : `${sign}${fmtRp(d)} MoM`;
-        dCls = (d > 0) === c.higherIsBad ? 'delta-bad' : 'delta-good';
-      }
-
-      return `<div class="ratio-card">
+    document.getElementById('rev-exp-ratios').innerHTML = defs.map(d => `
+      <div class="ratio-card">
         <div>
-          <div class="ratio-header">
-            <div class="ratio-title">${escapeHtml(c.title)}</div>
-            <span class="ratio-badge ${escapeHtml(c.badge[1])}">${escapeHtml(c.badge[0])}</span>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <span class="ratio-title">${escapeHtml(d.title)}</span>
+            <span class="ratio-badge ${escapeHtml(d.badge[1])}">${escapeHtml(d.badge[0])}</span>
           </div>
-          <div class="ratio-value">${c.isPct ? fmtPct(c.val) : fmtRp(c.val)}</div>
-          <div class="ratio-benchmark">${escapeHtml(c.benchmark)}</div>
+          <div class="ratio-val">${escapeHtml(d.val)}</div>
         </div>
-        <div class="ratio-delta ${escapeHtml(dCls)}">${escapeHtml(dTxt)}</div>
-      </div>`;
-    }).join('');
+        <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(d.desc)}</div>
+      </div>
+    `).join('');
   }
 
+  function renderCostStructureChart(data) {
+    const labels = data.map(r => fmtMonthShort(r.month));
+    const cogs = data.map(r => Number(r.cost_of_sales || 0));
+    const labor = data.map(r => Number(r.labor_cost || 0));
+    const opexOther = data.map(r => Number(r.total_opex || 0) - Number(r.labor_cost || 0));
+    const ebitda = data.map(r => Number(r.ebitda || 0));
+
+    if (costStructureChart) costStructureChart.destroy();
+    costStructureChart = new Chart(document.getElementById('cost-structure-chart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'COGS (Food Cost)', data: cogs, backgroundColor: '#f87171' },
+          { label: 'Labor Cost', data: labor, backgroundColor: '#fbbf24' },
+          { label: 'Channel & Other Opex', data: opexOther, backgroundColor: '#93c5fd' },
+          { label: 'Store EBITDA', data: ebitda, backgroundColor: '#34d399' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 11, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${fmtCompactRp(ctx.raw)}`
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, ticks: { callback: v => fmtCompactRp(v) } }
+        }
+      }
+    });
+  }
+
+  function renderMonthlyTrajectoryTable(data) {
+    const rev = [...data].reverse();
+    const rows = [
+      { name: 'Net Sales', key: 'net_sales', isPct: false, isBold: true },
+      { name: 'Actual Cost of Sales (COGS)', key: 'cost_of_sales', isPct: false, isBold: false },
+      { name: 'Food Cost %', key: 'food_cost_pct', isPct: true, isBold: false },
+      { name: 'Gross Profit', key: 'gross_profit', isPct: false, isBold: true },
+      { name: 'Gross Margin %', key: 'gross_margin_pct', isPct: true, isBold: false },
+      { name: 'Labor Cost', key: 'labor_cost', isPct: false, isBold: false },
+      { name: 'Labor Cost %', key: 'labor_cost_pct', isPct: true, isBold: false },
+      { name: 'Prime Cost % (COGS + Labor)', key: 'prime_cost_pct', isPct: true, isBold: true },
+      { name: 'Total Operating Expenses', key: 'total_opex', isPct: false, isBold: false },
+      { name: 'Store EBITDA', key: 'ebitda', isPct: false, isBold: true },
+      { name: 'EBITDA Margin %', key: 'ebitda_margin_pct', isPct: true, isBold: true }
+    ];
+
+    const monthsHeader = rev.map(r => `<th>${escapeHtml(r.month)}</th>`).join('');
+    const bodyHtml = rows.map(item => {
+      const cells = rev.map(r => {
+        const v = r[item.key];
+        const formatted = item.isPct ? fmtPct(v) : fmtRp(v);
+        return `<td style="${item.isBold ? 'font-weight:700;' : ''}">${formatted}</td>`;
+      }).join('');
+      return `<tr style="${item.isBold ? 'background:#f8fafc;' : ''}">
+        <td style="${item.isBold ? 'font-weight:700;color:#1e3a8a;' : ''}">${escapeHtml(item.name)}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    document.getElementById('monthly-summary-table').innerHTML = `
+      <thead>
+        <tr>
+          <th>Metrik Finansial</th>
+          ${monthsHeader}
+        </tr>
+      </thead>
+      <tbody>
+        ${bodyHtml}
+      </tbody>
+    `;
+  }
+
+  // =========================================================================
+  // View 3: Income Statement (P&L Waterfall Table)
+  // =========================================================================
   function renderIncomeStatement(cur, prev) {
     const ns = Number(cur.net_sales || 0);
-    const pns = Number(prev.net_sales || 0);
     const hasPrev = prev && prev.month !== undefined;
 
-    const row = (name, key, type, isSubtotal, isTotal, isIndent) => {
+    const row = (name, key, isSubtotal, isTotal, isIndent) => {
       const val = Number(cur[key] || 0);
       const pVal = hasPrev ? Number(prev[key] || 0) : 0;
       const commonSize = ns > 0 ? (val / ns) * 100 : 0;
@@ -499,145 +1633,128 @@
       </thead>
       <tbody>
         ${header('1. REVENUE (PENDAPATAN)')}
-        ${row('Gross Sales (Penjualan Bruto)', 'gross_sales', 'rp', false, false, false)}
-        ${row('(-) Discounts & Promo Deals', 'discounts', 'rp', false, false, true)}
-        ${row('(-) Customer Refunds', 'refunds', 'rp', false, false, true)}
-        ${row('NET SALES (TOPLINE)', 'net_sales', 'rp', true, false, false)}
+        ${row('Gross Sales (Penjualan Bruto)', 'gross_sales', false, false, false)}
+        ${row('(-) Discounts & Promo Deals', 'discounts', false, false, true)}
+        ${row('(-) Customer Refunds', 'refunds', false, false, true)}
+        ${row('NET SALES (TOPLINE)', 'net_sales', true, false, false)}
 
         ${header('2. COST OF SALES / HPP (COGS)')}
-        ${row('Standard Recipe COGS', 'cogs_standard', 'rp', false, false, true)}
-        ${row('Waste & Spoilage Cost', 'waste_cost', 'rp', false, false, true)}
-        ${row('Inventory Variance (Selisih Fisik/Shrinkage)', 'inventory_variance', 'rp', false, false, true)}
-        ${row('TOTAL COST OF SALES (ACTUAL COGS)', 'cost_of_sales', 'rp', true, false, false)}
+        ${row('Standard Recipe COGS', 'cogs_standard', false, false, true)}
+        ${row('Waste & Spoilage Cost', 'waste_cost', false, false, true)}
+        ${row('Inventory Variance (Selisih Fisik)', 'inventory_variance', false, false, true)}
+        ${row('TOTAL COST OF SALES (ACTUAL COGS)', 'cost_of_sales', true, false, false)}
 
-        ${row('GROSS PROFIT (LABA KOTOR)', 'gross_profit', 'rp', true, false, false)}
+        ${row('GROSS PROFIT (LABA KOTOR)', 'gross_profit', true, false, false)}
 
         ${header('3. BEBAN OPERASIONAL (OPERATING EXPENSES)')}
-        ${row('Channel Commissions (Online Aggregator)', 'channel_commission', 'rp', false, false, true)}
-        ${row('Payment Processing & EDC Fees', 'payment_fees', 'rp', false, false, true)}
-        ${row('Labor Cost (Gaji & Upah Toko)', 'labor_cost', 'rp', false, false, true)}
-        ${row('Other OPEX (Utilitas, Sewa, Operasional)', 'other_opex', 'rp', false, false, true)}
-        ${row('TOTAL OPERATING EXPENSES (OPEX)', 'total_opex', 'rp', true, false, false)}
+        ${row('Channel Commissions (Online Aggregator)', 'channel_commission', false, false, true)}
+        ${row('Payment Processing & EDC Fees', 'payment_fees', false, false, true)}
+        ${row('Labor Cost (Gaji & Upah Toko)', 'labor_cost', false, false, true)}
+        ${row('Other OPEX (Utilitas, Sewa, Operasional)', 'other_opex', false, false, true)}
+        ${row('TOTAL OPERATING EXPENSES (OPEX)', 'total_opex', true, false, false)}
 
-        ${row('STORE EBITDA (LABA OPERASIONAL TOKO)', 'ebitda', 'rp', false, true, false)}
+        ${row('STORE EBITDA (LABA OPERASIONAL TOKO)', 'ebitda', false, true, false)}
       </tbody>
     `;
 
     document.getElementById('pnl-statement-table').innerHTML = html;
   }
 
-  function renderCharts(data) {
-    const months = data.map(r => r.month);
-    const netSales = data.map(r => Number(r.net_sales || 0));
-    const cogs = data.map(r => Number(r.cost_of_sales || 0));
-    const labor = data.map(r => Number(r.labor_cost || 0));
-    const opexOther = data.map(r => Number(r.total_opex || 0) - Number(r.labor_cost || 0));
-    const ebitda = data.map(r => Number(r.ebitda || 0));
-
-    // 1. Cost Structure & Profit Breakdown (Stacked Bar)
-    if (costStructureChart) costStructureChart.destroy();
-    costStructureChart = new Chart(document.getElementById('cost-structure-chart'), {
-      type: 'bar',
-      data: {
-        labels: months,
-        datasets: [
-          { label: 'COGS (Food Cost)', data: cogs, backgroundColor: '#f87171' },
-          { label: 'Labor Cost', data: labor, backgroundColor: '#fbbf24' },
-          { label: 'Channel & Other Opex', data: opexOther, backgroundColor: '#93c5fd' },
-          { label: 'Store EBITDA', data: ebitda, backgroundColor: '#34d399' },
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { stacked: true },
-          y: { stacked: true, ticks: { callback: v => fmtRp(v) } }
-        },
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${fmtRp(ctx.raw)}`
-            }
-          }
-        }
-      }
-    });
-
-    // 2. Financial Ratio Trends
-    const primeRatios = data.map(r => Number(r.prime_cost_pct || 0));
-    const foodRatios = data.map(r => Number(r.food_cost_pct || 0));
-    const ebitdaRatios = data.map(r => Number(r.ebitda_margin_pct || 0));
-
-    if (ratioTrendChart) ratioTrendChart.destroy();
-    ratioTrendChart = new Chart(document.getElementById('ratio-trend-chart'), {
-      type: 'line',
-      data: {
-        labels: months,
-        datasets: [
-          { label: 'Prime Cost % (Max 60%)', data: primeRatios, borderColor: '#dc2626', backgroundColor: '#dc2626', borderWidth: 2, tension: 0.2 },
-          { label: 'Food Cost % (Max 32%)', data: foodRatios, borderColor: '#f59e0b', backgroundColor: '#f59e0b', borderWidth: 2, tension: 0.2 },
-          { label: 'EBITDA Margin % (Min 18%)', data: ebitdaRatios, borderColor: '#16a34a', backgroundColor: '#16a34a', borderWidth: 2, tension: 0.2 }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { ticks: { callback: v => v + '%' } }
-        },
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(2)}%`
-            }
-          }
-        }
-      }
-    });
-  }
-
-  function renderMonthlySummary(data) {
-    const rev = [...data].reverse();
-    const rows = [
-      { name: 'Net Sales', key: 'net_sales', isPct: false, isBold: true },
-      { name: 'Actual Cost of Sales (COGS)', key: 'cost_of_sales', isPct: false, isBold: false },
-      { name: 'Food Cost %', key: 'food_cost_pct', isPct: true, isBold: false },
-      { name: 'Gross Profit', key: 'gross_profit', isPct: false, isBold: true },
-      { name: 'Gross Margin %', key: 'gross_margin_pct', isPct: true, isBold: false },
-      { name: 'Labor Cost', key: 'labor_cost', isPct: false, isBold: false },
-      { name: 'Labor Cost %', key: 'labor_cost_pct', isPct: true, isBold: false },
-      { name: 'Prime Cost % (COGS + Labor)', key: 'prime_cost_pct', isPct: true, isBold: true },
-      { name: 'Total Operating Expenses', key: 'total_opex', isPct: false, isBold: false },
-      { name: 'Store EBITDA', key: 'ebitda', isPct: false, isBold: true },
-      { name: 'EBITDA Margin %', key: 'ebitda_margin_pct', isPct: true, isBold: true },
+  // =========================================================================
+  // Realistic Fallback Dataset (Used only when opening standalone in browser)
+  // =========================================================================
+  function getMockData() {
+    const months = [
+      '2025-10', '2025-11', '2025-12',
+      '2026-01', '2026-02', '2026-03',
+      '2026-04', '2026-05', '2026-06',
+      '2026-07', '2026-08', '2026-09'
     ];
+    const outlets = ['CLOUD-03', 'FLG-01', 'KIOSK-02'];
+    const pnl = [];
 
-    const monthsHeader = rev.map(r => `<th>${escapeHtml(r.month)}${isCompleteMonth(r) ? '' : '<br><small>(MTD)</small>'}</th>`).join('');
+    months.forEach((m, mIdx) => {
+      let totSales = 0, totCogs = 0, totLabor = 0, totOtherOpex = 0, totOrders = 0;
 
-    const bodyHtml = rows.map(item => {
-      const cells = rev.map(r => {
-        const v = r[item.key];
-        const formatted = item.isPct ? fmtPct(v) : fmtRp(v);
-        return `<td style="${item.isBold ? 'font-weight:700;' : ''}">${formatted}</td>`;
-      }).join('');
-      return `<tr style="${item.isBold ? 'background:#f8fafc;' : ''}">
-        <td style="${item.isBold ? 'font-weight:700;color:#1e3a8a;' : ''}">${escapeHtml(item.name)}</td>
-        ${cells}
-      </tr>`;
-    }).join('');
+      outlets.forEach((out, oIdx) => {
+        const baseSales = out === 'FLG-01' ? 730000000 : (out === 'CLOUD-03' ? 450000000 : 410000000);
+        const seasonal = 1 + Math.sin((mIdx + oIdx) / 2) * 0.08;
+        const net_sales = Math.round(baseSales * seasonal);
+        const food_cost_pct = out === 'CLOUD-03' ? 23.5 : (out === 'FLG-01' ? 26.2 : 26.8);
+        const cost_of_sales = Math.round(net_sales * (food_cost_pct / 100));
+        const labor_cost = Math.round(out === 'FLG-01' ? 182000000 : (out === 'CLOUD-03' ? 54000000 : 84000000));
+        const other_opex = Math.round(out === 'FLG-01' ? 190000000 : (out === 'CLOUD-03' ? 80000000 : 94000000));
+        const channel_commission = Math.round(net_sales * (out === 'CLOUD-03' ? 0.20 : (out === 'FLG-01' ? 0.07 : 0.05)));
+        const total_opex = labor_cost + other_opex + channel_commission;
+        const gross_profit = net_sales - cost_of_sales;
+        const ebitda = gross_profit - total_opex;
+        const order_count = Math.round(net_sales / (out === 'FLG-01' ? 90000 : 92000));
 
-    document.getElementById('monthly-summary-table').innerHTML = `
-      <thead>
-        <tr>
-          <th>Metrik Finansial</th>
-          ${monthsHeader}
-        </tr>
-      </thead>
-      <tbody>
-        ${bodyHtml}
-      </tbody>
-    `;
+        totSales += net_sales;
+        totCogs += cost_of_sales;
+        totLabor += labor_cost;
+        totOtherOpex += (other_opex + channel_commission);
+        totOrders += order_count;
+
+        pnl.push({
+          month: m,
+          outlet: out,
+          is_complete_month: true,
+          order_count: order_count,
+          gross_sales: Math.round(net_sales * 1.015),
+          discounts: Math.round(net_sales * 0.01),
+          refunds: Math.round(net_sales * 0.005),
+          net_sales: net_sales,
+          cost_of_sales: cost_of_sales,
+          gross_profit: gross_profit,
+          labor_cost: labor_cost,
+          total_opex: total_opex,
+          ebitda: ebitda,
+          gross_margin_pct: Number(((gross_profit / net_sales) * 100).toFixed(2)),
+          food_cost_pct: food_cost_pct,
+          prime_cost_pct: Number((((cost_of_sales + labor_cost) / net_sales) * 100).toFixed(2)),
+          opex_ratio_pct: Number(((total_opex / net_sales) * 100).toFixed(2)),
+          ebitda_margin_pct: Number(((ebitda / net_sales) * 100).toFixed(2)),
+          waste_pct: 0.12,
+          avg_order_value: Math.round(net_sales / order_count)
+        });
+      });
+
+      // Consolidated 'ALL' row
+      const totGp = totSales - totCogs;
+      const totOpex = totLabor + totOtherOpex;
+      const totEbitda = totGp - totOpex;
+      pnl.push({
+        month: m,
+        outlet: 'ALL',
+        is_complete_month: true,
+        order_count: totOrders,
+        gross_sales: Math.round(totSales * 1.015),
+        discounts: Math.round(totSales * 0.01),
+        refunds: Math.round(totSales * 0.005),
+        net_sales: totSales,
+        cost_of_sales: totCogs,
+        gross_profit: totGp,
+        labor_cost: totLabor,
+        total_opex: totOpex,
+        ebitda: totEbitda,
+        gross_margin_pct: Number(((totGp / totSales) * 100).toFixed(2)),
+        food_cost_pct: Number(((totCogs / totSales) * 100).toFixed(2)),
+        prime_cost_pct: Number((((totCogs + totLabor) / totSales) * 100).toFixed(2)),
+        opex_ratio_pct: Number(((totOpex / totSales) * 100).toFixed(2)),
+        ebitda_margin_pct: Number(((totEbitda / totSales) * 100).toFixed(2)),
+        waste_pct: 0.11,
+        avg_order_value: Math.round(totSales / totOrders)
+      });
+    });
+
+    return {
+      pnl: pnl,
+      kpi: [],
+      waste: [],
+      menu: [],
+      lastSync: new Date().toISOString()
+    };
   }
 </script>
 </body>

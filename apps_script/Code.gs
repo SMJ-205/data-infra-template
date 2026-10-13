@@ -276,7 +276,7 @@ function onOpen() {
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Dashboard')
-    .setTitle('F&B Performance')
+    .setTitle('F&B Performance Hub')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
