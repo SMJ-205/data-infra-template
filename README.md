@@ -1,6 +1,6 @@
-# F&B Modern Data Platform (100% Free-Tier Architecture)
+# F&B Data Platform
 
-> **Enterprise-Grade Multi-Outlet Food & Beverage Data Platform built with Zero Operational Cost (Rp 0 / $0.00/month).**
+> **Enterprise-Grade Multi-Outlet Food & Beverage Data Platform built with Zero Operational Cost.**
 > 
 > Menggabungkan **Neon PostgreSQL (OLTP)**, **dlt (Ingestion)**, **Google BigQuery (`asia-southeast2`)**, **dbt Core v1.9 (Transformation & Semantic Costing)**, serta Serving layer ganda: **Vercel Static Dashboard (Chart.js + Kasavana-Smith Matrix)** dan **Google Sheets + Apps Script (Automated KPI & Alerts)**.
 
