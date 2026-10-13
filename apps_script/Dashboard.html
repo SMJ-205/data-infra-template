@@ -604,6 +604,15 @@
       </div>
     </div>
 
+    <!-- Banner data contoh: hanya muncul saat file dibuka di luar Apps Script -->
+    <div id="sample-state" class="state-banner" style="display:none; border-color:#fde68a; background:#fffbeb; padding:12px 16px;">
+      <div style="font-size:13px; font-weight:800; color:#92400e;">DATA CONTOH: bukan angka sebenarnya</div>
+      <div style="font-size:12px; color:#78350f; margin-top:2px;">Halaman dibuka di luar Google Apps Script, sehingga memakai dataset contoh untuk pratinjau tampilan.</div>
+    </div>
+
+    <!-- Catatan periode: muncul saat bulan yang dipilih masih berjalan (MTD) -->
+    <div id="period-note" style="display:none; margin-bottom:14px; padding:10px 14px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; border-radius:8px; font-size:12px; line-height:1.5;"></div>
+
     <!-- ============================================================== -->
     <!-- VIEW 1: PROFIT BREAKDOWN (Exact match of attached screenshot) -->
     <!-- ============================================================== -->
@@ -698,11 +707,11 @@
           </div>
         </div>
 
-        <!-- Card 4: Net Profit (EBITDA) -->
+        <!-- Card 4: Outlet EBITDA -->
         <div class="kpi-card" id="card-np">
           <div>
             <div class="kpi-card-header">
-              <span class="kpi-card-title">Net Profit (EBITDA)</span>
+              <span class="kpi-card-title">Outlet EBITDA</span>
               <div class="kpi-card-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="4" y="2" width="16" height="20" rx="2"></rect>
@@ -717,11 +726,11 @@
           </div>
           <div>
             <div class="kpi-subtext">
-              <span>NP Last Month:</span>
+              <span>EBITDA Last Month:</span>
               <b id="sub-np-prev">Rp 0</b>
             </div>
             <div class="kpi-target-row">
-              <span style="color:var(--text-muted);">Margin Target: &gt;18%</span>
+              <span style="color:var(--text-muted);">EBITDA Margin Target: &gt;18%</span>
               <span id="target-np-val" style="color:var(--good);">0.0% ↑</span>
             </div>
             <div class="kpi-progress-bar-bg">
@@ -743,10 +752,10 @@
           </div>
         </div>
 
-        <!-- Combo Chart 2: Net Profit & Net Profit Margin by Months -->
+        <!-- Combo Chart 2: Outlet EBITDA & EBITDA Margin by Months -->
         <div class="chart-panel">
           <div class="chart-header">
-            <span class="chart-title">Net Profit and Net Profit Margin by Months</span>
+            <span class="chart-title">Outlet EBITDA and EBITDA Margin by Months</span>
           </div>
           <div class="chart-box">
             <canvas id="np-combo-chart"></canvas>
@@ -764,8 +773,8 @@
             <button class="kpi-pill" data-kpi="total_expense">Exp</button>
             <button class="kpi-pill" data-kpi="gross_profit">GP</button>
             <button class="kpi-pill" data-kpi="gross_margin_pct">GP Margin</button>
-            <button class="kpi-pill" data-kpi="ebitda">EBIT</button>
-            <button class="kpi-pill" data-kpi="ebitda_margin_pct">NP Margin</button>
+            <button class="kpi-pill" data-kpi="ebitda">EBITDA</button>
+            <button class="kpi-pill" data-kpi="ebitda_margin_pct">EBITDA Margin</button>
           </div>
           <div class="chart-header" style="margin-bottom:6px;">
             <span class="chart-title" id="kpi-trend-title">Rev by Months and Business Line</span>
@@ -844,17 +853,18 @@
       .replace(/'/g, '&#39;');
   }
 
+  // Format ringkas Rupiah: M = miliar, Jt = juta, Rb = ribu.
   function fmtCompactRp(val) {
-    if (val === null || val === undefined || isNaN(val)) return 'Rp 0';
+    if (val === null || val === undefined || val === '' || isNaN(val)) return 'Rp 0';
     const num = Number(val);
     const abs = Math.abs(num);
     const sign = num < 0 ? '-' : '';
     if (abs >= 1e9) {
-      return sign + 'Rp ' + (abs / 1e9).toFixed(2) + 'M';
+      return sign + 'Rp ' + (abs / 1e9).toFixed(2) + ' M';
     } else if (abs >= 1e6) {
-      return sign + 'Rp ' + (abs / 1e6).toFixed(2) + 'M';
+      return sign + 'Rp ' + (abs / 1e6).toFixed(1) + ' Jt';
     } else if (abs >= 1e3) {
-      return sign + 'Rp ' + (abs / 1e3).toFixed(0) + 'K';
+      return sign + 'Rp ' + (abs / 1e3).toFixed(0) + ' Rb';
     }
     return sign + 'Rp ' + Math.round(abs).toLocaleString('id-ID');
   }
@@ -869,6 +879,7 @@
     return Number(v).toFixed(2) + '%';
   }
 
+  // '2026-10' -> 'Oct 26' (tahun disertakan agar Oct 2025 dan Oct 2026 tidak tertukar)
   function fmtMonthShort(mStr) {
     if (!mStr) return '';
     const parts = String(mStr).split('-');
@@ -876,10 +887,40 @@
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const mIdx = parseInt(parts[1], 10) - 1;
       if (mIdx >= 0 && mIdx < 12) {
-        return monthNames[mIdx];
+        return monthNames[mIdx] + ' ' + parts[0].slice(-2);
       }
     }
     return mStr;
+  }
+
+  // Bulan berjalan (belum tutup) ditandai is_complete_month = false oleh dbt.
+  function isPartialRow(r) {
+    if (!r) return false;
+    const v = r.is_complete_month;
+    return v === false || String(v).toLowerCase() === 'false';
+  }
+
+  function isPartialMonth(month) {
+    if (!RAW_DATA || !RAW_DATA.pnl) return false;
+    return RAW_DATA.pnl.some(r => r.month === month && isPartialRow(r));
+  }
+
+  function monthLabel(month) {
+    return fmtMonthShort(month) + (isPartialMonth(month) ? ' (MTD)' : '');
+  }
+
+  // Ambang batas disamakan dengan dbt/seeds/kpi_thresholds.csv (warn / critical).
+  const THRESHOLDS = {
+    food_cost_pct: { warn: 32, crit: 35 },
+    prime_cost_pct: { warn: 60, crit: 65 },
+    waste_pct: { warn: 2, crit: 3 },
+    gross_margin_pct: { warn: 65, crit: 60 }   // lower_is_worse
+  };
+
+  function badgeHigherIsWorse(v, t, labels) {
+    if (v >= t.crit) return [labels[2], 'bad'];
+    if (v >= t.warn) return [labels[1], 'warn'];
+    return [labels[0], 'good'];
   }
 
   // =========================================================================
@@ -923,6 +964,8 @@
     } else {
       // Standalone preview fallback (uses realistic data based on actual schema)
       console.warn('Running outside Google Apps Script: Using fallback dataset for local preview.');
+      const sample = document.getElementById('sample-state');
+      if (sample) sample.style.display = 'block';
       setTimeout(() => {
         onDataLoaded(getMockData());
       }, 300);
@@ -1014,9 +1057,14 @@
 
     if (months.length > 0) {
       if (!months.includes(SELECTED_MONTH)) {
-        SELECTED_MONTH = months[0];
+        // Default: bulan terakhir yang sudah tutup, bukan bulan berjalan (MTD)
+        const completeMonths = months.filter(m => !isPartialMonth(m));
+        SELECTED_MONTH = completeMonths.length > 0 ? completeMonths[0] : months[0];
       }
-      sel.innerHTML = months.map(m => `<option value="${escapeHtml(m)}" ${m === SELECTED_MONTH ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
+      sel.innerHTML = months.map(m => {
+        const label = m + (isPartialMonth(m) ? ' (MTD, berjalan)' : '');
+        return `<option value="${escapeHtml(m)}" ${m === SELECTED_MONTH ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+      }).join('');
     } else {
       sel.innerHTML = `<option value="">-</option>`;
       SELECTED_MONTH = '';
@@ -1040,8 +1088,8 @@
           'total_expense': 'Exp',
           'gross_profit': 'GP',
           'gross_margin_pct': 'GP Margin',
-          'ebitda': 'EBIT',
-          'ebitda_margin_pct': 'NP Margin'
+          'ebitda': 'Outlet EBITDA',
+          'ebitda_margin_pct': 'EBITDA Margin'
         };
         const titleEl = document.getElementById('kpi-trend-title');
         if (titleEl) {
@@ -1067,10 +1115,14 @@
 
     const curIndex = outletData.findIndex(r => r.month === SELECTED_MONTH);
     const cur = curIndex >= 0 ? outletData[curIndex] : (outletData[outletData.length - 1] || {});
-    const prev = curIndex > 0 ? outletData[curIndex - 1] : {};
+    const partial = isPartialRow(cur);
+    // Bulan berjalan tidak dibandingkan dengan bulan penuh sebelumnya (perbandingan tidak setara)
+    const prev = (curIndex > 0 && !partial) ? outletData[curIndex - 1] : {};
+
+    renderPeriodNote(cur, partial);
 
     // 1. Profit Breakdown View
-    renderKpiCards(cur, prev);
+    renderKpiCards(cur, prev, partial);
     renderComboCharts(outletData);
     renderKpiMultiLineChart();
 
@@ -1080,13 +1132,25 @@
     renderMonthlyTrajectoryTable(outletData);
 
     // 3. Income Statement View
-    renderIncomeStatement(cur, prev);
+    renderIncomeStatement(cur, prev, partial);
+  }
+
+  function renderPeriodNote(cur, partial) {
+    const el = document.getElementById('period-note');
+    if (!el) return;
+    if (partial) {
+      el.style.display = 'block';
+      el.textContent = `Periode ${cur.month || ''} masih berjalan (MTD). Angka belum lengkap satu bulan dan biaya operasional memakai estimasi dari bulan lalu, sehingga perbandingan dengan bulan sebelumnya disembunyikan.`;
+    } else {
+      el.style.display = 'none';
+      el.textContent = '';
+    }
   }
 
   // =========================================================================
   // View 1: Top 4 KPI Cards
   // =========================================================================
-  function renderKpiCards(cur, prev) {
+  function renderKpiCards(cur, prev, partial) {
     const rev = Number(cur.net_sales || 0);
     const prevRev = Number(prev.net_sales || 0);
     const costSales = Number(cur.cost_of_sales || 0);
@@ -1115,7 +1179,9 @@
       el.style.color = dRevPct >= 0 ? 'var(--good)' : 'var(--bad)';
       document.getElementById('prog-rev').style.width = Math.min(Math.max((rev / prevRev) * 100, 10), 100) + '%';
     } else {
-      document.getElementById('target-rev-val').textContent = 'Baseline';
+      const el = document.getElementById('target-rev-val');
+      el.textContent = partial ? 'MTD, belum dibandingkan' : 'Baseline';
+      el.style.color = 'var(--text-muted)';
       document.getElementById('prog-rev').style.width = '100%';
     }
 
@@ -1132,13 +1198,14 @@
     document.getElementById('val-gp').textContent = fmtCompactRp(gp);
     document.getElementById('sub-gp-prev').textContent = prevGp > 0 ? fmtCompactRp(prevGp) : '-';
     const gpEl = document.getElementById('target-gp-val');
-    gpEl.textContent = `${gpMargin.toFixed(1)}% ${gpMargin >= 65 ? '↑' : '↓'}`;
-    gpEl.style.color = gpMargin >= 65 ? 'var(--good)' : 'var(--warn)';
+    const gpT = THRESHOLDS.gross_margin_pct;
+    gpEl.textContent = `${gpMargin.toFixed(1)}% ${gpMargin >= gpT.warn ? '↑' : '↓'}`;
+    gpEl.style.color = gpMargin >= gpT.warn ? 'var(--good)' : (gpMargin >= gpT.crit ? 'var(--warn)' : 'var(--bad)');
     document.getElementById('prog-gp').style.width = Math.min(Math.max((gpMargin / 75) * 100, 10), 100) + '%';
 
-    // Card 4: Net Profit (EBITDA)
+    // Card 4: Outlet EBITDA (laba operasional outlet, sebelum penyusutan, bunga, pajak)
     document.getElementById('val-np').textContent = fmtCompactRp(np);
-    document.getElementById('sub-np-prev').textContent = prevNp > 0 ? fmtCompactRp(prevNp) : '-';
+    document.getElementById('sub-np-prev').textContent = (prev && prev.month !== undefined) ? fmtCompactRp(prevNp) : '-';
     const npEl = document.getElementById('target-np-val');
     npEl.textContent = `${npMargin.toFixed(1)}% ${npMargin >= 18 ? '↑' : '↓'}`;
     npEl.style.color = npMargin >= 18 ? 'var(--good)' : 'var(--warn)';
@@ -1149,7 +1216,7 @@
   // View 1: Combo Charts (Dual-Axis with On-Chart % Data Labels)
   // =========================================================================
   function renderComboCharts(data) {
-    const labels = data.map(r => fmtMonthShort(r.month));
+    const labels = data.map(r => monthLabel(r.month));
 
     // 1. Gross Profit & GP Margin Combo Chart
     const gpValues = data.map(r => Number(r.gross_profit || 0));
@@ -1173,8 +1240,8 @@
             type: 'line',
             label: 'Gross Profit Margin',
             data: gpMargins,
-            borderColor: '#334155',
-            backgroundColor: '#334155',
+            borderColor: '#ea580c',          // oranye, senada ikon header
+            backgroundColor: '#ea580c',
             borderWidth: 2,
             borderDash: [5, 4],
             pointRadius: 4,
@@ -1185,8 +1252,11 @@
               display: true,
               align: 'top',
               offset: 3,
-              color: '#334155',
-              font: { size: 9, weight: '700' },
+              color: '#c2410c',
+              backgroundColor: 'rgba(255, 255, 255, 0.85)',
+              borderRadius: 3,
+              padding: { top: 1, bottom: 1, left: 3, right: 3 },
+              font: { size: 10, weight: '700' },
               formatter: v => v != null && !isNaN(v) ? Number(v).toFixed(1) + '%' : ''
             }
           }
@@ -1221,7 +1291,7 @@
       }
     });
 
-    // 2. Net Profit & NP Margin Combo Chart
+    // 2. Outlet EBITDA & EBITDA Margin Combo Chart
     const npValues = data.map(r => Number(r.ebitda || 0));
     const npMargins = data.map(r => Number(r.ebitda_margin_pct || 0));
 
@@ -1232,7 +1302,7 @@
         datasets: [
           {
             type: 'bar',
-            label: 'Net Profit (EBITDA)',
+            label: 'Outlet EBITDA',
             data: npValues,
             backgroundColor: '#2563eb',
             borderRadius: 3,
@@ -1241,10 +1311,10 @@
           },
           {
             type: 'line',
-            label: 'Net Profit Margin',
+            label: 'EBITDA Margin',
             data: npMargins,
-            borderColor: '#334155',
-            backgroundColor: '#334155',
+            borderColor: '#ea580c',          // oranye, senada ikon header
+            backgroundColor: '#ea580c',
             borderWidth: 2,
             borderDash: [5, 4],
             pointRadius: 4,
@@ -1255,8 +1325,11 @@
               display: true,
               align: 'top',
               offset: 3,
-              color: '#334155',
-              font: { size: 9, weight: '700' },
+              color: '#c2410c',
+              backgroundColor: 'rgba(255, 255, 255, 0.85)',
+              borderRadius: 3,
+              padding: { top: 1, bottom: 1, left: 3, right: 3 },
+              font: { size: 10, weight: '700' },
               formatter: v => v != null && !isNaN(v) ? Number(v).toFixed(1) + '%' : ''
             }
           }
@@ -1313,8 +1386,8 @@
             type: 'line',
             label: 'OPEX Ratio %',
             data: opexRatios,
-            borderColor: '#334155',
-            backgroundColor: '#334155',
+            borderColor: '#ea580c',          // oranye, senada ikon header
+            backgroundColor: '#ea580c',
             borderWidth: 2,
             borderDash: [5, 4],
             pointRadius: 4,
@@ -1325,8 +1398,11 @@
               display: true,
               align: 'top',
               offset: 3,
-              color: '#334155',
-              font: { size: 9, weight: '700' },
+              color: '#c2410c',
+              backgroundColor: 'rgba(255, 255, 255, 0.85)',
+              borderRadius: 3,
+              padding: { top: 1, bottom: 1, left: 3, right: 3 },
+              font: { size: 10, weight: '700' },
               formatter: v => v != null && !isNaN(v) ? Number(v).toFixed(1) + '%' : ''
             }
           }
@@ -1370,7 +1446,7 @@
 
     // Months sequence from ALL outlet data
     const allMonths = [...new Set(RAW_DATA.pnl.map(r => r.month))].filter(Boolean).sort();
-    const monthLabels = allMonths.map(m => fmtMonthShort(m));
+    const monthLabels = allMonths.map(m => monthLabel(m));
 
     // Get individual outlets (exclude 'ALL')
     let targetOutlets = [...new Set(RAW_DATA.pnl.map(r => r.outlet))].filter(o => o && o !== 'ALL').sort();
@@ -1387,7 +1463,7 @@
 
       const dataPoints = allMonths.map(m => {
         const row = rowMap[m];
-        if (!row) return 0;
+        if (!row) return null;   // outlet belum beroperasi: kosong, bukan nol
         if (SELECTED_KPI === 'total_expense') {
           return Number(row.cost_of_sales || 0) + Number(row.total_opex || 0);
         }
@@ -1457,14 +1533,14 @@
       {
         title: 'Prime Cost % (COGS + Upah)',
         val: fmtPct(primePct),
-        badge: primePct <= 55 ? ['Optimal', 'good'] : (primePct <= 60 ? ['Waspada', 'warn'] : ['Bahaya', 'bad']),
-        desc: 'Benchmark F&B: < 60%'
+        badge: badgeHigherIsWorse(primePct, THRESHOLDS.prime_cost_pct, ['Optimal', 'Waspada', 'Bahaya']),
+        desc: `Warn ≥ ${THRESHOLDS.prime_cost_pct.warn}%, critical ≥ ${THRESHOLDS.prime_cost_pct.crit}%`
       },
       {
         title: 'Food Cost % (Actual COGS)',
         val: fmtPct(foodCostPct),
-        badge: foodCostPct <= 32 ? ['Optimal', 'good'] : ['Tinggi', 'warn'],
-        desc: 'Benchmark F&B: 28% - 32%'
+        badge: badgeHigherIsWorse(foodCostPct, THRESHOLDS.food_cost_pct, ['Optimal', 'Tinggi', 'Kritis']),
+        desc: `Warn ≥ ${THRESHOLDS.food_cost_pct.warn}%, critical ≥ ${THRESHOLDS.food_cost_pct.crit}%`
       },
       {
         title: 'Labor Cost % (Upah Toko)',
@@ -1476,13 +1552,13 @@
         title: 'Operating Expense Ratio',
         val: fmtPct(opexRatioPct),
         badge: opexRatioPct <= 45 ? ['Terkontrol', 'good'] : ['Tinggi', 'warn'],
-        desc: 'Total OPEX / Net Sales'
+        desc: 'Total OPEX (gaji, sewa, komisi kanal, biaya bayar) / Net Sales'
       },
       {
         title: 'Waste & Spoilage Ratio',
         val: fmtPct(wastePct),
-        badge: wastePct <= 2.0 ? ['Minim', 'good'] : ['Perlu Cek', 'warn'],
-        desc: 'Bocor & bahan terbuang'
+        badge: badgeHigherIsWorse(wastePct, THRESHOLDS.waste_pct, ['Minim', 'Perlu Cek', 'Tinggi']),
+        desc: `Warn ≥ ${THRESHOLDS.waste_pct.warn}%, critical ≥ ${THRESHOLDS.waste_pct.crit}%`
       },
       {
         title: 'Average Order Value (AOV)',
@@ -1507,7 +1583,7 @@
   }
 
   function renderCostStructureChart(data) {
-    const labels = data.map(r => fmtMonthShort(r.month));
+    const labels = data.map(r => monthLabel(r.month));
     const cogs = data.map(r => Number(r.cost_of_sales || 0));
     const labor = data.map(r => Number(r.labor_cost || 0));
     const opexOther = data.map(r => Number(r.total_opex || 0) - Number(r.labor_cost || 0));
@@ -1522,7 +1598,7 @@
           { label: 'COGS (Food Cost)', data: cogs, backgroundColor: '#f87171' },
           { label: 'Labor Cost', data: labor, backgroundColor: '#fbbf24' },
           { label: 'Channel & Other Opex', data: opexOther, backgroundColor: '#93c5fd' },
-          { label: 'Store EBITDA', data: ebitda, backgroundColor: '#34d399' }
+          { label: 'Outlet EBITDA', data: ebitda, backgroundColor: '#34d399' }
         ]
       },
       options: {
@@ -1556,11 +1632,11 @@
       { name: 'Labor Cost %', key: 'labor_cost_pct', isPct: true, isBold: false },
       { name: 'Prime Cost % (COGS + Labor)', key: 'prime_cost_pct', isPct: true, isBold: true },
       { name: 'Total Operating Expenses', key: 'total_opex', isPct: false, isBold: false },
-      { name: 'Store EBITDA', key: 'ebitda', isPct: false, isBold: true },
+      { name: 'Outlet EBITDA', key: 'ebitda', isPct: false, isBold: true },
       { name: 'EBITDA Margin %', key: 'ebitda_margin_pct', isPct: true, isBold: true }
     ];
 
-    const monthsHeader = rev.map(r => `<th>${escapeHtml(r.month)}</th>`).join('');
+    const monthsHeader = rev.map(r => `<th>${escapeHtml(r.month)}${isPartialRow(r) ? '<br><span style="font-weight:400;font-size:10px;">MTD</span>' : ''}</th>`).join('');
     const bodyHtml = rows.map(item => {
       const cells = rev.map(r => {
         const v = r[item.key];
@@ -1589,7 +1665,7 @@
   // =========================================================================
   // View 3: Income Statement (P&L Waterfall Table)
   // =========================================================================
-  function renderIncomeStatement(cur, prev) {
+  function renderIncomeStatement(cur, prev, partial) {
     const ns = Number(cur.net_sales || 0);
     const hasPrev = prev && prev.month !== undefined;
 
@@ -1624,9 +1700,9 @@
       <thead>
         <tr>
           <th>Akun Keuangan (Line Item)</th>
-          <th>Bulan ${escapeHtml(cur.month || '-')} (Rp)</th>
+          <th>Bulan ${escapeHtml(cur.month || '-')}${partial ? ' (MTD)' : ''} (Rp)</th>
           <th>Common-Size (% Net Sales)</th>
-          <th>Bulan ${escapeHtml(prev.month || 'Prev')} (Rp)</th>
+          <th>${hasPrev ? 'Bulan ' + escapeHtml(prev.month) + ' (Rp)' : 'Bulan Sebelumnya'}</th>
           <th>Varians (Rp MoM)</th>
           <th>Pertumbuhan (% MoM)</th>
         </tr>
@@ -1653,7 +1729,7 @@
         ${row('Other OPEX (Utilitas, Sewa, Operasional)', 'other_opex', false, false, true)}
         ${row('TOTAL OPERATING EXPENSES (OPEX)', 'total_opex', true, false, false)}
 
-        ${row('STORE EBITDA (LABA OPERASIONAL TOKO)', 'ebitda', false, true, false)}
+        ${row('OUTLET EBITDA (LABA OPERASIONAL OUTLET, SEBELUM PENYUSUTAN, BUNGA & PAJAK)', 'ebitda', false, true, false)}
       </tbody>
     `;
 
