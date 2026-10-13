@@ -54,7 +54,7 @@ flowchart LR
 
 ## Zero-Cost Guarantee (100% Free-Tier Breakdown)
 
-Seluruh komponen arsitektur berada dalam batas gratis permanen (*free-tier*) tanpa risiko pembengkakan biaya:
+Seluruh komponen arsitektur berada dalam batas gratis permanen (*free-tier*) tanpa risiko timbul biaya - karena arsitektur ini hanya digunakan sebagai simulasi portofolio :
 
 | Komponen | Provider | Batas Free-Tier | Konsumsi Platform Ini | Safety Mechanism |
 |---|---|---|---|---|
