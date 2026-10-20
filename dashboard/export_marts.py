@@ -14,6 +14,7 @@ from pathlib import Path
 from google.cloud import bigquery
 
 PROJECT = os.environ.get("GCP_PROJECT_ID", "fnb-data-platform")
+MARTS_DATASET = os.environ.get("MARTS_DATASET", "marts")   # override untuk preview lokal dari dataset dev
 LOCATION = "asia-southeast2"
 OUT = Path(__file__).parent / "public" / "data"
 MAX_FILE_BYTES = 2_500_000
@@ -201,6 +202,46 @@ EXPORTS = {
         where report_date >= date_sub(current_date('Asia/Jakarta'), interval 450 day)
         order by report_date, outlet_id, category_name
     """,
+    "inventory_position": """
+        select
+            balance_date,
+            outlet_id,
+            round(on_hand_value, 0) as on_hand_value,
+            round(purchased_amount, 0) as purchased_amount,
+            round(usage_value, 0) as usage_value,
+            round(avg_daily_usage_value_28d, 0) as avg_daily_usage_value_28d,
+            round(days_on_hand, 2) as days_on_hand,
+            round(shrinkage_value, 0) as shrinkage_value,
+            is_count_day,
+            n_ingredients_critical,
+            n_ingredients_negative
+        from `{p}.marts.mart_inventory_position_daily`
+        where balance_date >= date_sub(current_date('Asia/Jakarta'), interval 450 day)
+        order by balance_date, outlet_id
+    """,
+    "inventory_status": """
+        select
+            as_of_date,
+            outlet_id,
+            ingredient_id,
+            ingredient_name,
+            ingredient_category,
+            base_uom,
+            shelf_life_days,
+            round(on_hand_qty, 2) as on_hand_qty,
+            round(avg_daily_usage_28d, 2) as avg_daily_usage_28d,
+            round(days_on_hand, 2) as days_on_hand,
+            round(on_hand_value, 0) as on_hand_value,
+            last_count_date,
+            days_since_last_count,
+            round(usage_qty_90d, 2) as usage_qty_90d,
+            round(shrinkage_qty_90d, 2) as shrinkage_qty_90d,
+            round(shrinkage_value_90d, 0) as shrinkage_value_90d,
+            round(shrinkage_pct_90d, 2) as shrinkage_pct_90d,
+            stock_status
+        from `{p}.marts.mart_inventory_ingredient_status`
+        order by outlet_id, ingredient_id
+    """,
 }
 
 
@@ -224,7 +265,8 @@ def main() -> None:
     data_through = None
 
     for name, sql in EXPORTS.items():
-        result = client.query(sql.format(p=PROJECT), job_config=config).result()
+        sql = sql.format(p=PROJECT).replace(f"`{PROJECT}.marts.", f"`{PROJECT}.{MARTS_DATASET}.")
+        result = client.query(sql, job_config=config).result()
         banned = [f.name for f in result.schema if BANNED_COLUMNS.search(f.name)]
         if banned:
             raise SystemExit(f"{name}: kolom terlarang untuk dipublikasikan: {banned}")

@@ -337,6 +337,7 @@ function setupGlobalSearch() {
 const TAB_DATA_DEPENDENCIES = {
   pnl: ['pnl_monthly', 'pnl_daily', 'kpi_status'],
   cost: ['inventory_variance', 'waste'],
+  stock: ['inventory_position', 'inventory_status'],
   menu: ['menu_engineering'],
   channel: ['channel_daily', 'orders_hourly'],
   simulator: ['pnl_daily', 'category_daily'],
@@ -399,6 +400,8 @@ async function loadData() {
       'menu_engineering',
       'inventory_variance',
       'waste',
+      'inventory_position',
+      'inventory_status',
       'channel_daily',
       'orders_hourly',
     ];
@@ -460,6 +463,9 @@ async function renderActiveTab() {
       break;
     case 'cost':
       renderCostVariance();
+      break;
+    case 'stock':
+      renderStock();
       break;
     case 'menu':
       renderMenuEngineering();
@@ -1290,6 +1296,184 @@ function renderCostVariance() {
       },
     },
   });
+}
+
+// TAB: STOK & SUSUT (fct_inventory_balance_daily)
+const OUTLET_COLORS = { 'FLG-01': '#2F80ED', 'KIOSK-02': '#F8B602', 'CLOUD-03': '#8950FC' };
+const STOCK_STATUS_ORDER = { Habis: 0, Kritis: 1, 'Risiko Kedaluwarsa': 2, 'Tidak Bergerak': 3, Normal: 4 };
+const STOCK_STATUS_BADGE = {
+  Habis: 'badge-status-critical',
+  Kritis: 'badge-status-critical',
+  'Risiko Kedaluwarsa': 'badge-status-warn',
+  'Tidak Bergerak': 'badge-puzzle',
+  Normal: 'badge-status-ok',
+};
+const rpAxisTick = (v) => {
+  const a = Math.abs(v);
+  if (a >= 1e6) return 'Rp ' + (v / 1e6).toFixed(1) + 'jt';
+  if (a >= 1e3) return 'Rp ' + (v / 1e3).toFixed(0) + 'rb';
+  return 'Rp ' + v;
+};
+const fmtQty = (v, digits = 1) =>
+  v === null || v === undefined || isNaN(v) ? '-' : Number(v).toLocaleString('id-ID', { maximumFractionDigits: digits });
+
+function renderStock() {
+  const { start, end } = state.dateRange;
+  const outletOk = (r) => state.selectedOutlet === 'ALL' || r.outlet_id === state.selectedOutlet;
+  const pos = (state.data.inventory_position || []).filter(outletOk);
+  const status = (state.data.inventory_status || []).filter(outletOk);
+  const inRange = pos.filter((r) => (!start || r.balance_date >= start) && (!end || r.balance_date <= end));
+
+  // KPI: posisi pada tanggal terakhir dalam rentang, susut sepanjang rentang
+  const lastDate = inRange.reduce((m, r) => (r.balance_date > m ? r.balance_date : m), '');
+  const lastRows = inRange.filter((r) => r.balance_date === lastDate);
+  const sum = (rows, k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+  const stockValue = sum(lastRows, 'on_hand_value');
+  const usageValue28 = sum(lastRows, 'avg_daily_usage_value_28d');
+  const daysOnHand = usageValue28 ? stockValue / usageValue28 : null;
+  const shrink = sum(inRange, 'shrinkage_value');
+  const usage = sum(inRange, 'usage_value');
+  const shrinkPct = usage ? (shrink / usage) * 100 : null;
+  const countDays = new Set(inRange.filter((r) => r.is_count_day).map((r) => r.balance_date)).size;
+  const urgent = status.filter((r) => r.stock_status === 'Habis' || r.stock_status === 'Kritis').length;
+  const expiryRisk = status.filter((r) => r.stock_status === 'Risiko Kedaluwarsa').length;
+  const asOf = status.length ? status[0].as_of_date : '-';
+
+  document.getElementById('kpi-stock-container').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span class="kpi-title">Nilai Stok Akhir</span>
+        <div class="kpi-badge-row"><span class="badge-tag badge-star">${escapeHtml(lastDate || '-')}</span></div>
+      </div>
+      <div class="kpi-value">${fmtRpCompact(stockValue)}</div>
+      <div class="kpi-subtext">Dinilai dengan standard cost per tanggal</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span class="kpi-title">Hari Stok (Days on Hand)</span>
+        <div class="kpi-badge-row"><span class="badge-tag badge-puzzle">Berbobot nilai</span></div>
+      </div>
+      <div class="kpi-value">${daysOnHand === null ? '-' : fmtQty(daysOnHand, 1) + ' hari'}</div>
+      <div class="kpi-subtext">Pemakaian rata-rata 28 hari: ${fmtRp(usageValue28)} / hari</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span class="kpi-title">Susut Opname (Rentang)</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag ${shrinkPct !== null && shrinkPct > 2 ? 'badge-status-critical' : 'badge-status-ok'}">Target ≤ 2%</span>
+        </div>
+      </div>
+      <div class="kpi-value">${fmtRpCompact(shrink)}</div>
+      <div class="kpi-subtext">${fmtPct(shrinkPct)} dari pemakaian teoretis • ${countDays} hari opname</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span class="kpi-title">Bahan Perlu Tindakan</span>
+        <div class="kpi-badge-row">
+          <span class="badge-tag ${urgent > 0 ? 'badge-status-critical' : 'badge-status-ok'}">Per ${escapeHtml(asOf)}</span>
+        </div>
+      </div>
+      <div class="kpi-value">${fmtNum(urgent)}</div>
+      <div class="kpi-subtext">Habis/Kritis • ${fmtNum(expiryRisk)} berisiko kedaluwarsa</div>
+    </div>`;
+
+  // Chart 1: nilai stok harian (satu garis per outlet)
+  const dates = [...new Set(inRange.map((r) => r.balance_date))].sort();
+  const outlets = [...new Set(inRange.map((r) => r.outlet_id))].sort();
+  const byKey = {};
+  inRange.forEach((r) => (byKey[`${r.outlet_id}|${r.balance_date}`] = r));
+  if (state.charts.stockValue) state.charts.stockValue.destroy();
+  state.charts.stockValue = new Chart(document.getElementById('chart-stock-value').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: outlets.map((o) => ({
+        label: o,
+        data: dates.map((d) => (byKey[`${o}|${d}`] ? Number(byKey[`${o}|${d}`].on_hand_value) : null)),
+        borderColor: OUTLET_COLORS[o] || '#7E8299',
+        backgroundColor: OUTLET_COLORS[o] || '#7E8299',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.2,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#464E5F' } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtRp(ctx.raw)}` } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#7E8299', maxTicksLimit: 10 } },
+        y: { grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: rpAxisTick } },
+      },
+    },
+  });
+
+  // Chart 2: susut opname per bulan per outlet (seluruh bulan)
+  const shrinkMap = {};
+  pos.forEach((r) => {
+    if (!r.is_count_day) return;
+    const m = String(r.balance_date).substring(0, 7);
+    shrinkMap[m] = shrinkMap[m] || {};
+    shrinkMap[m][r.outlet_id] = (shrinkMap[m][r.outlet_id] || 0) + (Number(r.shrinkage_value) || 0);
+  });
+  const months = Object.keys(shrinkMap).sort();
+  const allOutlets = [...new Set(pos.map((r) => r.outlet_id))].sort();
+  if (state.charts.shrinkMonthly) state.charts.shrinkMonthly.destroy();
+  state.charts.shrinkMonthly = new Chart(document.getElementById('chart-shrink-monthly').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: allOutlets.map((o) => ({
+        label: o,
+        data: months.map((m) => Math.round(shrinkMap[m][o] || 0)),
+        backgroundColor: OUTLET_COLORS[o] || '#7E8299',
+        borderRadius: 4,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#464E5F' } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtRp(ctx.raw)}` } },
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: '#7E8299' } },
+        y: { stacked: true, grid: { color: '#F0F1F6' }, ticks: { color: '#7E8299', callback: rpAxisTick } },
+      },
+    },
+  });
+
+  // Tabel status bahan
+  const rows = [...status].sort(
+    (a, b) =>
+      (STOCK_STATUS_ORDER[a.stock_status] ?? 9) - (STOCK_STATUS_ORDER[b.stock_status] ?? 9) ||
+      (Number(b.shrinkage_value_90d) || 0) - (Number(a.shrinkage_value_90d) || 0)
+  );
+  document.getElementById('stock-status-desc').textContent =
+    `Posisi per ${asOf} (tanggal saldo terakhir), diurutkan dari yang paling mendesak lalu susut terbesar`;
+  document.querySelector('#table-stock-status tbody').innerHTML =
+    rows
+      .map((r) => {
+        const name = INGREDIENT_NAMES[r.ingredient_id] || r.ingredient_name || r.ingredient_id;
+        const shrinkCls = (Number(r.shrinkage_pct_90d) || 0) > 2 ? 'style="color: var(--danger, #FF5B5B); font-weight: 700;"' : '';
+        return `<tr>
+          <td>${escapeHtml(r.outlet_id)}</td>
+          <td><strong>${escapeHtml(name)}</strong><br><span class="data-note">${escapeHtml(r.ingredient_category || '')}</span></td>
+          <td><span class="badge-tag ${STOCK_STATUS_BADGE[r.stock_status] || ''}">${escapeHtml(r.stock_status)}</span></td>
+          <td>${fmtQty(r.on_hand_qty)} ${escapeHtml(r.base_uom || '')}</td>
+          <td>${r.days_on_hand === null || r.days_on_hand === undefined ? '-' : fmtQty(r.days_on_hand, 1)}</td>
+          <td>${fmtQty(r.avg_daily_usage_28d)} ${escapeHtml(r.base_uom || '')}</td>
+          <td>${fmtRp(r.on_hand_value)}</td>
+          <td ${shrinkCls}>${fmtPct(r.shrinkage_pct_90d)} <span class="data-note">(${fmtRp(r.shrinkage_value_90d)})</span></td>
+          <td>${escapeHtml(r.last_count_date || '-')} <span class="data-note">(${fmtNum(r.days_since_last_count)} hr)</span></td>
+        </tr>`;
+      })
+      .join('') || '<tr><td colspan="9">Data stok belum tersedia.</td></tr>';
 }
 
 // TAB 3: MENU ENGINEERING (Kasavana & Smith)

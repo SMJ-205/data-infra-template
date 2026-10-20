@@ -29,3 +29,5 @@ exposures:
       - ref('mart_channel_performance_daily')
       - ref('mart_orders_hourly')
       - ref('mart_category_performance_daily')
+      - ref('mart_inventory_position_daily')
+      - ref('mart_inventory_ingredient_status')

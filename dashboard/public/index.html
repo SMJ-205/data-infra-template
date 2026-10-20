@@ -188,6 +188,9 @@
           <button class="tab-btn" data-tab="cost" id="tab-btn-cost">
             Cost Control &amp; Variance
           </button>
+          <button class="tab-btn" data-tab="stock" id="tab-btn-stock">
+            Stok &amp; Susut
+          </button>
           <button class="tab-btn" data-tab="menu" id="tab-btn-menu">
             Menu Engineering
           </button>
@@ -376,6 +379,73 @@
       </div>
     </section>
 
+    <!-- TAB: STOK & SUSUT (fct_inventory_balance_daily) -->
+    <section class="tab-section" id="sec-stock">
+      <div class="kpi-grid" id="kpi-stock-container">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Nilai Stok Harian per Outlet</h2>
+              <p class="panel-desc">Saldo akhir hari = stock opname terakhir + pembelian - pemakaian teoretis (resep) - waste, dinilai dengan standard cost</p>
+              <span class="data-note">Mengikuti filter outlet &amp; tanggal. Saldo di-reset ke hasil hitung fisik setiap hari opname.</span>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-stock-value"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Susut Opname per Bulan (Rp)</h2>
+              <p class="panel-desc">Selisih hitung fisik vs saldo buku pada hari opname. Positif = stok hilang (overpour, pencurian, pencatatan terlewat)</p>
+              <span class="data-note">Menampilkan seluruh bulan (tidak mengikuti rentang tanggal). Mengikuti filter outlet.</span>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chart-shrink-monthly"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel-row">
+        <div class="panel-card full-width-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Status Stok per Bahan</h2>
+              <p class="panel-desc" id="stock-status-desc">Posisi pada tanggal saldo terakhir, diurutkan dari yang paling mendesak</p>
+              <span class="data-note">Kritis = &lt; 1 hari pemakaian (&lt; 0,25 hari untuk bahan segar yang dikirim harian). Risiko Kedaluwarsa = hari stok melebihi umur simpan. Mengikuti filter outlet.</span>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-stock-status">
+              <thead>
+                <tr>
+                  <th>Outlet</th>
+                  <th>Bahan</th>
+                  <th>Status</th>
+                  <th>Stok</th>
+                  <th>Hari Stok</th>
+                  <th>Pemakaian / Hari</th>
+                  <th>Nilai Stok</th>
+                  <th>Susut 90 Hari</th>
+                  <th>Opname Terakhir</th>
+                </tr>
+              </thead>
+              <tbody><!-- JS rendered --></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB 4: CHANNELS & HEATMAP -->
     <section class="tab-section" id="sec-channel">
       <div class="chart-panel-row">
@@ -496,6 +566,8 @@
               <option value="orders_hourly">mart_orders_hourly</option>
               <option value="category_daily">mart_category_performance_daily</option>
               <option value="kpi_status">mart_kpi_monthly_status</option>
+              <option value="inventory_position">mart_inventory_position_daily</option>
+              <option value="inventory_status">mart_inventory_ingredient_status</option>
             </select>
             <input type="text" id="input-explorer-search" placeholder="Cari baris..." class="filter-select" style="min-width: 180px;">
             <button class="pill-badge" id="btn-export-csv" style="cursor: pointer;">Unduh CSV</button>
@@ -520,6 +592,6 @@
   </div>
 
   <!-- Main JavaScript App -->
-  <script src="app.js?v=20261011_cat_pnl"></script>
+  <script src="app.js?v=20261021_stock"></script>
 </body>
 </html>
