@@ -111,3 +111,27 @@ models:
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [count_id, ingredient_id]
+
+  - name: fct_inventory_balance_daily
+    description: >
+      Saldo stok harian per outlet x bahan raw (spine padat). on_hand_qty = stock count terakhir + pergerakan
+      bersih sesudahnya; di-reset setiap opname. Incremental: hanya bulan sejak tanggal pertama yang berubah
+      yang dihitung ulang, saldo dilanjutkan dari baris sebelumnya (lihat header model).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [balance_date, outlet_id, ingredient_id]
+    columns:
+      - name: on_hand_qty
+        description: Saldo akhir hari (base uom) berbasis opname terakhir + pergerakan teoretis sesudahnya.
+        data_tests:
+          - not_null
+      - name: counted_qty
+        description: Hasil opname (ekuivalen bahan raw) pada tanggal itu; NULL bila tidak ada opname.
+      - name: count_variance_qty
+        description: >
+          counted_qty - (saldo kemarin + pergerakan hari ini). Negatif = susut/tak tercatat (mis. overpour).
+          Identik dengan -unexplained_variance_qty di mart_inventory_variance (dijaga test).
+      - name: days_on_hand
+        description: on_hand_qty / rata-rata pemakaian (sales + waste) 28 hari terakhir.
+      - name: is_negative_on_hand
+        description: Saldo teoretis negatif → pemakaian riil melebihi stok tercatat (receipt hilang / overpour).

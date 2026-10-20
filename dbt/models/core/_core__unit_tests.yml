@@ -77,3 +77,53 @@ unit_tests:
       rows:
         - {order_item_id: 1, is_revenue_line: true,  net_sales_amount: 20000}
         - {order_item_id: 2, is_revenue_line: false, net_sales_amount: 0}
+
+  - name: test_inventory_balance_continues_from_seed_and_resets_on_count
+    description: >
+      Target sudah berisi s.d. 30 Sep (saldo 100, opname terakhir 28 Sep) dan cocok dengan source → hanya
+      Oktober yang dihitung (rebuild_from = 1 Okt). 1 Okt jual 10 → 90; 2 Okt beli 50 → 140;
+      3 Okt jual 5 lalu opname 130 → ekspektasi 135, selisih -5, saldo di-reset ke 130.
+    model: fct_inventory_balance_daily
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: this
+        format: sql
+        rows: |
+          select date '2026-09-29' as balance_date, 'FLG-01' as outlet_id, 'ING_X' as ingredient_id,
+                 numeric '0' as purchased_qty, numeric '0' as purchased_amount, numeric '0' as theoretical_sales_qty,
+                 numeric '0' as waste_qty, cast(null as numeric) as counted_qty, numeric '100' as on_hand_qty,
+                 date '2026-09-28' as last_count_date
+          union all
+          select date '2026-09-30', 'FLG-01', 'ING_X', 0, 0, 0, 0, null, 100, date '2026-09-28'
+      - input: ref('util_dates')
+        rows:
+          - {date_day: 2026-09-29}
+          - {date_day: 2026-09-30}
+          - {date_day: 2026-10-01}
+          - {date_day: 2026-10-02}
+          - {date_day: 2026-10-03}
+      - input: ref('dim_outlet')
+        rows:
+          - {outlet_id: FLG-01}
+      - input: ref('stg_pos__ingredients')
+        rows:
+          - {ingredient_id: ING_X, is_prep_item: false}
+      - input: ref('fct_inventory_movements_daily')
+        rows:
+          - {outlet_id: FLG-01, movement_date: 2026-10-01, ingredient_id: ING_X, theoretical_sales_qty: 10, waste_qty: 0, purchased_qty: 0,  purchased_amount: 0}
+          - {outlet_id: FLG-01, movement_date: 2026-10-02, ingredient_id: ING_X, theoretical_sales_qty: 0,  waste_qty: 0, purchased_qty: 50, purchased_amount: 50000}
+          - {outlet_id: FLG-01, movement_date: 2026-10-03, ingredient_id: ING_X, theoretical_sales_qty: 5,  waste_qty: 0, purchased_qty: 0,  purchased_amount: 0}
+      - input: ref('fct_stock_counts')
+        rows:
+          - {outlet_id: FLG-01, count_date: 2026-10-03, ingredient_id: ING_X, counted_qty_base: 130}
+      - input: ref('int_item_explosion_daily')
+        rows: []
+      - input: ref('int_item_std_cost_daily')
+        rows: []
+    expect:
+      rows:
+        - {balance_date: 2026-10-01, on_hand_qty: 90,  last_count_date: 2026-09-28, counted_qty: null, count_variance_qty: null}
+        - {balance_date: 2026-10-02, on_hand_qty: 140, last_count_date: 2026-09-28, counted_qty: null, count_variance_qty: null}
+        - {balance_date: 2026-10-03, on_hand_qty: 130, last_count_date: 2026-10-03, counted_qty: 130,  count_variance_qty: -5}

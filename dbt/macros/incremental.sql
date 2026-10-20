@@ -30,9 +30,9 @@
                 this ~ ": partition/cluster spec tabel berbeda dengan config model. Jalankan sekali dengan --full-refresh.") }}
         {%- endif -%}
         {%- set existing = adapter.get_columns_in_relation(this) | map(attribute='name') | map('lower') | list -%}
-        {%- if required_column not in existing -%}
+        {%- if required_column is not none and required_column not in existing -%}
             {{ exceptions.raise_compiler_error(
-                this ~ ": kolom watermark `" ~ required_column ~ "` belum ada. Jalankan sekali dengan --full-refresh.") }}
+                this ~ ": kolom `" ~ required_column ~ "` belum ada. Jalankan sekali dengan --full-refresh.") }}
         {%- endif -%}
     {%- endif -%}
     select 1
