@@ -23,7 +23,7 @@ flowchart LR
     subgraph DWH["3. Data Warehouse (BigQuery asia-southeast2)"]
         RAW[("raw_fnb<br/>Raw Tables")]
         STG[("stg<br/>29 Clean Views")]
-        INT[("int<br/>Recursive BOM Explosion<br/>Std Cost Daily Engine")]
+        INT[("int<br/>Recursive BOM Explosion (WITH RECURSIVE)<br/>Std Cost Daily Engine")]
         CORE[("core<br/>Star Schema Dimensions<br/>& Fact Tables")]
         MARTS[("marts<br/>P&L, Variance, Kasavana-Smith,<br/>Waste & Traffic")]
     end
@@ -108,6 +108,10 @@ Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FL
    - Transparansi margin antara transaksi *Dine-in/Takeaway* vs *Online Delivery* (GoFood 20% naik ke 22% per 2026, GrabFood 20%, ShopeeFood 18%).
 5. **Traffic & Heatmap Operasional (`mart_orders_hourly`)**:
    - Pola lonjakan jam makan siang (11:00–13:00) dan makan malam (18:00–20:00) untuk optimasi jadwal staf barista & dapur.
+6. **Recursive Bill of Materials (`int_item_explosion_daily`)**:
+   - BOM diurai dengan `WITH RECURSIVE` sampai bahan raw, berapa pun tingkat prep-nya. Contoh dari story event 2026-11-01: `MNU_NGORENG → PRP_BUMBU (Bumbu Dasar) → PRP_BWGOR (Bawang Goreng) → ING_SHALLOT`. `loss_pct` dikalikan di setiap level, dan versi resep dipilih per tanggal.
+   - **Fail loud, bukan silent**: prep tanpa resep aktif, siklus BOM, atau kedalaman di atas `bom_max_depth` tidak dibuang diam-diam. Porsi tersebut keluar dengan `ingredient_id = NULL` lalu menggagalkan test `not_null` dan `n_components_missing_cost`.
+   - **Unit test rekursi di BigQuery**: BigQuery hanya mengizinkan `WITH RECURSIVE` di level teratas, sedangkan dbt membungkus SQL model di dalam subquery saat unit test. Override [`macros/unit_test_recursive.sql`](dbt/macros/unit_test_recursive.sql) mengangkat CTE `final` ke level teratas, sehingga 4 unit test (multi-level, modifier, prep tanpa resep, siklus) tetap berjalan.
 
 ---
 
@@ -124,7 +128,8 @@ Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FL
 ├── oltp/
 │   ├── schema/
 │   │   ├── 001_schema.sql       # 29 tabel DDL relasional (fnb schema)
-│   │   └── 002_seed_master.sql  # Master outlets, ingredients, menu, BOM recipes
+│   │   ├── 002_seed_master.sql  # Master outlets, ingredients, menu, BOM recipes
+│   │   └── 004_multilevel_bom.sql # Migration: BOM 3 level (Bumbu Dasar → Bawang Goreng), berlaku 2026-11-01
 │   └── generator/
 │       ├── generate.py          # Generator data deterministik & idempotent
 │       └── config.yaml          # Parameter demand, event, dan elastisitas harga
@@ -134,7 +139,7 @@ Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FL
 ├── dbt/
 │   ├── models/
 │   │   ├── staging/pos/         # 29 views pembersihan tipe data & metadata
-│   │   ├── intermediate/        # BOM recursion explosion & daily standard costing
+│   │   ├── intermediate/        # Recursive BOM explosion (WITH RECURSIVE) & daily standard costing
 │   │   ├── core/                # Star schema (dim_*, fct_*)
 │   │   ├── marts/               # Marts analitik P&L, KPI, Kasavana-Smith, Variance
 │   │   └── exposures.yml        # Lineage exposure ke Vercel & Google Sheets

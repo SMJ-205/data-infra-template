@@ -31,3 +31,122 @@ unit_tests:
         - {date_day: 2026-01-15, item_type: Prep Item,  item_id: PRP_AREN, ingredient_id: ING_PALM, qty_per_unit: 0.5}
         - {date_day: 2026-01-15, item_type: Ingredient, item_id: ING_ESPR, ingredient_id: ING_ESPR, qty_per_unit: 1}
         - {date_day: 2026-01-15, item_type: Ingredient, item_id: ING_PALM, ingredient_id: ING_PALM, qty_per_unit: 1}
+
+  - name: test_item_explosion_recurses_multilevel_bom
+    description: >
+      BOM 3 level: MNU_NG -> PRP_A (bumbu, batch 1.000 g) -> PRP_B (bawang goreng, batch 500 g) -> raw.
+      20 g PRP_A = 10 g cabai + 2 g PRP_B; 2 g PRP_B = 4 g bawang merah + 1 ml minyak.
+      Modifier yang memakai prep ikut diurai rekursif. bom_depth = level daun terdalam.
+    model: int_item_explosion_daily
+    given:
+      - input: ref('util_dates')
+        rows:
+          - {date_day: 2026-10-15}
+      - input: ref('stg_pos__ingredients')
+        rows:
+          - {ingredient_id: ING_RICE,    is_prep_item: false}
+          - {ingredient_id: ING_CHILI,   is_prep_item: false}
+          - {ingredient_id: ING_SHALLOT, is_prep_item: false}
+          - {ingredient_id: ING_OIL,     is_prep_item: false}
+          - {ingredient_id: PRP_A,       is_prep_item: true}
+          - {ingredient_id: PRP_B,       is_prep_item: true}
+      - input: ref('stg_pos__recipes')
+        rows:
+          - {recipe_id: R_B,  menu_item_id: null,   prep_ingredient_id: PRP_B, yield_qty: 500,  effective_from: 2026-10-01, effective_to: null}
+          - {recipe_id: R_A,  menu_item_id: null,   prep_ingredient_id: PRP_A, yield_qty: 1000, effective_from: 2026-10-01, effective_to: null}
+          - {recipe_id: R_NG, menu_item_id: MNU_NG, prep_ingredient_id: null,  yield_qty: 1,    effective_from: 2026-10-01, effective_to: null}
+      - input: ref('stg_pos__recipe_lines')
+        rows:
+          - {recipe_id: R_B,  ingredient_id: ING_SHALLOT, qty_per_yield: 1000, loss_pct: 0}
+          - {recipe_id: R_B,  ingredient_id: ING_OIL,     qty_per_yield: 250,  loss_pct: 0}
+          - {recipe_id: R_A,  ingredient_id: ING_CHILI,   qty_per_yield: 500,  loss_pct: 0}
+          - {recipe_id: R_A,  ingredient_id: PRP_B,       qty_per_yield: 100,  loss_pct: 0}
+          - {recipe_id: R_NG, ingredient_id: ING_RICE,    qty_per_yield: 90,   loss_pct: 0}
+          - {recipe_id: R_NG, ingredient_id: PRP_A,       qty_per_yield: 20,   loss_pct: 0}
+      - input: ref('stg_pos__modifier_lines')
+        rows:
+          - {modifier_id: MOD_XBUMBU, ingredient_id: PRP_A, qty_delta: 5}
+    expect:
+      rows:
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_NG,     ingredient_id: ING_RICE,    qty_per_unit: 90,   bom_depth: 1}
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_NG,     ingredient_id: ING_CHILI,   qty_per_unit: 10,   bom_depth: 2}
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_NG,     ingredient_id: ING_SHALLOT, qty_per_unit: 4,    bom_depth: 3}
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_NG,     ingredient_id: ING_OIL,     qty_per_unit: 1,    bom_depth: 3}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_A,      ingredient_id: ING_CHILI,   qty_per_unit: 0.5,  bom_depth: 1}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_A,      ingredient_id: ING_SHALLOT, qty_per_unit: 0.2,  bom_depth: 2}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_A,      ingredient_id: ING_OIL,     qty_per_unit: 0.05, bom_depth: 2}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_B,      ingredient_id: ING_SHALLOT, qty_per_unit: 2,    bom_depth: 1}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_B,      ingredient_id: ING_OIL,     qty_per_unit: 0.5,  bom_depth: 1}
+        - {date_day: 2026-10-15, item_type: Modifier,   item_id: MOD_XBUMBU, ingredient_id: ING_CHILI,   qty_per_unit: 2.5,  bom_depth: 2}
+        - {date_day: 2026-10-15, item_type: Modifier,   item_id: MOD_XBUMBU, ingredient_id: ING_SHALLOT, qty_per_unit: 1,    bom_depth: 3}
+        - {date_day: 2026-10-15, item_type: Modifier,   item_id: MOD_XBUMBU, ingredient_id: ING_OIL,     qty_per_unit: 0.25, bom_depth: 3}
+        - {date_day: 2026-10-15, item_type: Ingredient, item_id: ING_RICE,    ingredient_id: ING_RICE,    qty_per_unit: 1, bom_depth: 0}
+        - {date_day: 2026-10-15, item_type: Ingredient, item_id: ING_CHILI,   ingredient_id: ING_CHILI,   qty_per_unit: 1, bom_depth: 0}
+        - {date_day: 2026-10-15, item_type: Ingredient, item_id: ING_SHALLOT, ingredient_id: ING_SHALLOT, qty_per_unit: 1, bom_depth: 0}
+        - {date_day: 2026-10-15, item_type: Ingredient, item_id: ING_OIL,     ingredient_id: ING_OIL,     qty_per_unit: 1, bom_depth: 0}
+
+  - name: test_item_explosion_flags_prep_without_active_recipe
+    description: >
+      PRP_C dipakai menu tetapi tidak punya resep aktif → keluar dengan ingredient_id NULL
+      (bukan hilang diam-diam), sehingga n_components_missing_cost di int_item_std_cost_daily > 0.
+    model: int_item_explosion_daily
+    given:
+      - input: ref('util_dates')
+        rows:
+          - {date_day: 2026-10-15}
+      - input: ref('stg_pos__ingredients')
+        rows:
+          - {ingredient_id: ING_RICE, is_prep_item: false}
+          - {ingredient_id: PRP_C,    is_prep_item: true}
+      - input: ref('stg_pos__recipes')
+        rows:
+          - {recipe_id: R_Y, menu_item_id: MNU_Y, prep_ingredient_id: null, yield_qty: 1, effective_from: 2026-10-01, effective_to: null}
+      - input: ref('stg_pos__recipe_lines')
+        rows:
+          - {recipe_id: R_Y, ingredient_id: ING_RICE, qty_per_yield: 10, loss_pct: 0}
+          - {recipe_id: R_Y, ingredient_id: PRP_C,    qty_per_yield: 30, loss_pct: 0}
+      - input: ref('stg_pos__modifier_lines')
+        rows: []
+    expect:
+      rows:
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_Y,    ingredient_id: ING_RICE, qty_per_unit: 10}
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_Y,    ingredient_id: null,     qty_per_unit: 30}
+        - {date_day: 2026-10-15, item_type: Ingredient, item_id: ING_RICE, ingredient_id: ING_RICE, qty_per_unit: 1}
+
+  - name: test_item_explosion_cuts_bom_cycle_without_losing_qty
+    description: >
+      Siklus PRP_P -> PRP_Q -> PRP_P (data master salah). Rekursi harus berhenti, dan porsi yang
+      terputus tetap keluar sebagai ingredient_id NULL (bukan hilang diam-diam), sementara cabang
+      sehat (beras) tetap terurai. MNU_Z: 10 PRP_P = 20 PRP_Q = 20 g beras + 60 PRP_P (siklus).
+    model: int_item_explosion_daily
+    given:
+      - input: ref('util_dates')
+        rows:
+          - {date_day: 2026-10-15}
+      - input: ref('stg_pos__ingredients')
+        rows:
+          - {ingredient_id: ING_RICE, is_prep_item: false}
+          - {ingredient_id: PRP_P,    is_prep_item: true}
+          - {ingredient_id: PRP_Q,    is_prep_item: true}
+      - input: ref('stg_pos__recipes')
+        rows:
+          - {recipe_id: R_P, menu_item_id: null,  prep_ingredient_id: PRP_P, yield_qty: 1, effective_from: 2026-10-01, effective_to: null}
+          - {recipe_id: R_Q, menu_item_id: null,  prep_ingredient_id: PRP_Q, yield_qty: 1, effective_from: 2026-10-01, effective_to: null}
+          - {recipe_id: R_Z, menu_item_id: MNU_Z, prep_ingredient_id: null,  yield_qty: 1, effective_from: 2026-10-01, effective_to: null}
+      - input: ref('stg_pos__recipe_lines')
+        rows:
+          - {recipe_id: R_P, ingredient_id: PRP_Q,    qty_per_yield: 2,  loss_pct: 0}
+          - {recipe_id: R_Q, ingredient_id: PRP_P,    qty_per_yield: 3,  loss_pct: 0}
+          - {recipe_id: R_Q, ingredient_id: ING_RICE, qty_per_yield: 1,  loss_pct: 0}
+          - {recipe_id: R_Z, ingredient_id: PRP_P,    qty_per_yield: 10, loss_pct: 0}
+      - input: ref('stg_pos__modifier_lines')
+        rows: []
+    expect:
+      rows:
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_Z,    ingredient_id: ING_RICE, qty_per_unit: 20, bom_depth: 3}
+        - {date_day: 2026-10-15, item_type: Menu Item,  item_id: MNU_Z,    ingredient_id: null,     qty_per_unit: 60, bom_depth: 3}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_P,    ingredient_id: ING_RICE, qty_per_unit: 2,  bom_depth: 2}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_P,    ingredient_id: null,     qty_per_unit: 6,  bom_depth: 2}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_Q,    ingredient_id: ING_RICE, qty_per_unit: 1,  bom_depth: 1}
+        - {date_day: 2026-10-15, item_type: Prep Item,  item_id: PRP_Q,    ingredient_id: null,     qty_per_unit: 6,  bom_depth: 2}
+        - {date_day: 2026-10-15, item_type: Ingredient, item_id: ING_RICE, ingredient_id: ING_RICE, qty_per_unit: 1,  bom_depth: 0}

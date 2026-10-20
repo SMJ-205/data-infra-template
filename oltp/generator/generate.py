@@ -190,6 +190,22 @@ class Master:
         else:
             out[ing] += qty
 
+    def prep_production_order(self, day):
+        """Prep item urut induk -> anak (prep yang memakai prep lain diproduksi lebih dulu agar kebutuhan anak ikut terhitung)."""
+        depth = {}
+
+        def level(ing, seen=()):
+            if ing in seen:
+                raise ValueError(f"Siklus BOM terdeteksi: {' -> '.join(seen + (ing,))}")
+            if ing not in depth:
+                rec = self.recipe(ing, day)
+                subs = [s for s, _ in rec[1] if self.ingredients[s]["is_prep"]] if rec else []
+                depth[ing] = 1 + max((level(s, seen + (ing,)) for s in subs), default=0)
+            return depth[ing]
+
+        preps = [i for i, m in self.ingredients.items() if m["is_prep"]]
+        return sorted(preps, key=lambda i: (-level(i), i))
+
 
 class Pool:
     """Pelanggan terdaftar, urut tanggal registrasi. Tersedia untuk order hari D bila registrasi < D."""
@@ -617,7 +633,7 @@ class Inventory:
                 shelf = M.ingredients[ing]["shelf"]
                 daily = shelf is not None and shelf <= INV["daily_delivery_shelf_life_max"]
                 if first or daily or day.weekday() in INV["receipt_weekdays"]:
-                    ema = self.ema[(o, ing)]
+                    ema = self.ema.get((o, ing), 0.0)          # bahan baru (migration) belum punya EMA
                     par = ema * 1.3 if daily else ema * INV["par_days"] * INV["par_safety"]
                     need = par - self.on_hand(o, ing)
                     if need > 1e-9:
@@ -658,14 +674,18 @@ class Inventory:
             if not M.ingredients[ing]["is_prep"]:
                 raw_consumed[ing] += qty
 
-        # batch prep: produksi sebelum jam buka sesuai kebutuhan hari itu
-        for ing in [i for i, m in M.ingredients.items() if m["is_prep"]]:
+        # batch prep: produksi sebelum jam buka sesuai kebutuhan hari itu.
+        # Urut induk -> anak: kebutuhan sub-prep dari batch induk ditambahkan ke `physical` sebelum giliran sub-prep.
+        for ing in M.prep_production_order(day):
             need = physical.get(ing, 0.0) - self.on_hand(o, ing)
             if need > 1e-9:
                 yq, lines = M.recipe(ing, day)
                 batches = math.ceil(need / yq)
                 for sub, g in lines:
-                    take(sub, g * yq * batches)
+                    if M.ingredients[sub]["is_prep"]:
+                        physical[sub] += g * yq * batches
+                    else:
+                        take(sub, g * yq * batches)
                 self.add_lot(o, ing, day, yq * batches)
         for ing, q in physical.items():
             take(ing, q)
@@ -725,7 +745,7 @@ class Inventory:
         if not closed:
             for ing in M.ingredients:
                 if not M.ingredients[ing]["is_prep"]:
-                    self.ema[(o, ing)] = 0.9 * self.ema[(o, ing)] + 0.1 * raw_consumed.get(ing, 0.0)
+                    self.ema[(o, ing)] = 0.9 * self.ema.get((o, ing), 0.0) + 0.1 * raw_consumed.get(ing, 0.0)
 
         # goods receipts
         n_line = 0
@@ -833,6 +853,7 @@ def cmd_apply_schema(args):
 def cmd_init_master(args):
     with connect() as conn:
         exec_sql_file(conn, SCHEMA_DIR / "002_seed_master.sql")
+        exec_sql_file(conn, SCHEMA_DIR / "004_multilevel_bom.sql")
         rows = []
         for oid, ocfg in CFG["outlets"].items():
             n = 0

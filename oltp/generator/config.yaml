@@ -134,3 +134,7 @@ inventory:
     ING_PALM:   [SUP06, liter, 1000]
     ING_RICE:   [SUP06, kg, 1000]
     ING_NOOD:   [SUP06, kg, 1000]
+    ING_SHALLOT: [SUP04, kg, 1000]
+    ING_GARLIC:  [SUP04, kg, 1000]
+    ING_CHILI:   [SUP04, kg, 1000]
+    ING_OIL:     [SUP06, liter, 1000]
