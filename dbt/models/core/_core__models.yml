@@ -42,7 +42,9 @@ models:
           - unique
 
   - name: fct_order_lines
-    description: Fact order lines dengan perhitungan revenue, alokasi diskon pro-rata, dan standard COGS.
+    description: >
+      Fact order lines dengan perhitungan revenue, alokasi diskon pro-rata, dan standard COGS.
+      Incremental insert_overwrite per order_date dengan penanganan late-arriving data (macros/incremental.sql).
     columns:
       - name: order_item_id
         data_tests:
@@ -58,14 +60,24 @@ models:
         data_tests:
           - not_null:
               where: "is_revenue_line"
+      - name: source_updated_at_utc
+        description: Waktu perubahan terakhir di source (order / item / modifier). Basis watermark incremental.
+        data_tests:
+          - not_null
 
   - name: fct_orders
-    description: Fact orders level transaksi order.
+    description: >
+      Fact orders level transaksi order. Incremental insert_overwrite per order_date dengan penanganan
+      late-arriving data (macros/incremental.sql).
     columns:
       - name: order_id
         data_tests:
           - not_null
           - unique
+      - name: source_updated_at_utc
+        description: Waktu perubahan terakhir di source (order / payment / order lines). Basis watermark incremental.
+        data_tests:
+          - not_null
 
   - name: fct_waste
     description: Fact catatan limbah (waste) dengan valuasi HPP standar tanggal kejadian.

@@ -1,8 +1,11 @@
 {{
   config(
-    materialized = 'table',
+    materialized = 'incremental',
+    incremental_strategy = 'insert_overwrite',
     partition_by = {'field': 'order_date', 'data_type': 'date', 'granularity': 'day'},
     cluster_by = ['outlet_id', 'menu_item_id'],
+    on_schema_change = 'fail',
+    pre_hook = "{{ guard_incremental_relation() }}",
     tags = ['finance', 'daily']
   )
 }}
@@ -12,14 +15,46 @@
             diskon level order dialokasikan pro-rata ke (gross - line_discount)
             diskon yang didanai Platform TIDAK mengurangi net sales merchant
             COGS standar = qty × (std cost menu + std cost modifier) pada tanggal order
+  Incremental: insert_overwrite per order_date. Partisi yang dibangun ulang = tanggal order yang order /
+            item / modifier-nya berubah sejak watermark (lihat macros/incremental.sql) → late-arriving
+            order (sync H+1 dst) masuk ke partisi tanggal order aslinya, partisi lain tidak disentuh.
 */
-with orders as (
-    select *
-    from {{ ref('stg_pos__orders') }}
+with
+{% if is_incremental() %}
+changed_dates as (
+    select o.order_date
+    from {{ ref('stg_pos__orders') }} as o
+    where o.updated_at_utc >= {{ late_arriving_watermark() }}
+
+    union distinct
+
+    select o.order_date
+    from {{ ref('stg_pos__order_items') }} as i
+    inner join {{ ref('stg_pos__orders') }} as o on o.order_id = i.order_id
+    where i.updated_at_utc >= {{ late_arriving_watermark() }}
+
+    union distinct
+
+    select o.order_date
+    from {{ ref('stg_pos__order_item_modifiers') }} as m
+    inner join {{ ref('stg_pos__order_items') }} as i on i.order_item_id = m.order_item_id
+    inner join {{ ref('stg_pos__orders') }} as o on o.order_id = i.order_id
+    where m.updated_at_utc >= {{ late_arriving_watermark() }}
+),
+{% endif %}
+
+orders as (
+    select o.*
+    from {{ ref('stg_pos__orders') }} as o
+    {% if is_incremental() %}
+        where o.order_date in (select cd.order_date from changed_dates as cd)
+    {% endif %}
 ),
 
 items as (
-    select * from {{ ref('stg_pos__order_items') }}
+    select i.*
+    from {{ ref('stg_pos__order_items') }} as i
+    inner join orders as o on o.order_id = i.order_id
 ),
 
 item_costs as (
@@ -30,7 +65,8 @@ modifiers as (
     select
         m.order_item_id,
         sum(m.price_delta)                          as modifier_price_per_unit,
-        sum(coalesce(c.std_cost_per_unit, 0))       as modifier_cost_per_unit
+        sum(coalesce(c.std_cost_per_unit, 0))       as modifier_cost_per_unit,
+        max(m.updated_at_utc)                       as modifier_updated_at_utc
     from {{ ref('stg_pos__order_item_modifiers') }} as m
     inner join items as i on i.order_item_id = m.order_item_id
     inner join orders as o on o.order_id = i.order_id
@@ -65,7 +101,12 @@ lines as (
         i.line_discount_amount,
         o.order_discount_amount,
         coalesce(p.funded_by, 'Merchant')                                   as order_discount_funded_by,
-        mc.std_cost_per_unit + coalesce(m.modifier_cost_per_unit, 0)        as std_cost_per_unit
+        mc.std_cost_per_unit + coalesce(m.modifier_cost_per_unit, 0)        as std_cost_per_unit,
+        greatest(
+            o.updated_at_utc,
+            i.updated_at_utc,
+            coalesce(m.modifier_updated_at_utc, i.updated_at_utc)
+        )                                                                   as source_updated_at_utc
     from items as i
     inner join orders as o on o.order_id = i.order_id
     left join modifiers as m on m.order_item_id = i.order_item_id
@@ -125,5 +166,6 @@ select
     platform_funded_discount_amount,
     if(is_revenue_line, gross_sales_amount - merchant_discount_amount, 0)  as net_sales_amount,
     std_cost_per_unit,
-    if(is_revenue_line, qty * std_cost_per_unit, 0)                        as cogs_std_amount
+    if(is_revenue_line, qty * std_cost_per_unit, 0)                        as cogs_std_amount,
+    source_updated_at_utc
 from final

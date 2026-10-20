@@ -1,0 +1,79 @@
+unit_tests:
+  - name: test_order_lines_incremental_rebuilds_partition_of_late_order
+    description: >
+      Watermark = max(source_updated_at_utc) di target (14 Okt 12:00) - lookback 3 hari = 11 Okt 12:00.
+      O_LATE dipesan 9 Okt tapi baru tersinkron 15 Okt (terlambat 6 hari, lebih dari lookback).
+      Karena seleksi berbasis updated_at, partisi 9 Okt tetap dibangun ulang UTUH: O_LATE masuk dan
+      O_OLD (9 Okt, tidak berubah) ikut dipilih agar tidak terhapus oleh insert_overwrite.
+      Partisi 10 Okt (O1, tidak berubah & di luar watermark) tidak disentuh.
+    model: fct_order_lines
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      # format sql: fixture tidak divalidasi terhadap skema tabel target yang sudah ada, sehingga test tetap
+      # jalan sebelum full refresh pertama yang menambahkan kolom watermark.
+      - input: this
+        format: sql
+        rows: |
+          select 1 as order_item_id, date '2026-10-09' as order_date, timestamp '2026-10-09 05:00:00' as source_updated_at_utc union all
+          select 2, date '2026-10-10', timestamp '2026-10-10 05:00:00' union all
+          select 3, date '2026-10-14', timestamp '2026-10-14 12:00:00'
+      - input: ref('stg_pos__orders')
+        rows:
+          - {order_id: O_OLD,  order_date: 2026-10-09, outlet_id: FLG-01, channel_code: DINE_IN, order_status: Completed, order_discount_amount: 0, updated_at_utc: "2026-10-09 05:00:00"}
+          - {order_id: O1,     order_date: 2026-10-10, outlet_id: FLG-01, channel_code: DINE_IN, order_status: Completed, order_discount_amount: 0, updated_at_utc: "2026-10-10 05:00:00"}
+          - {order_id: O2,     order_date: 2026-10-14, outlet_id: FLG-01, channel_code: DINE_IN, order_status: Completed, order_discount_amount: 0, updated_at_utc: "2026-10-14 12:00:00"}
+          - {order_id: O_LATE, order_date: 2026-10-09, outlet_id: FLG-01, channel_code: DINE_IN, order_status: Completed, order_discount_amount: 0, updated_at_utc: "2026-10-15 02:00:00"}
+          - {order_id: O3,     order_date: 2026-10-15, outlet_id: FLG-01, channel_code: DINE_IN, order_status: Completed, order_discount_amount: 0, updated_at_utc: "2026-10-15 03:00:00"}
+      - input: ref('stg_pos__order_items')
+        rows:
+          - {order_item_id: 1, order_id: O_OLD,  menu_item_id: MNU_A, line_status: Served, qty: 1, unit_price: 20000, line_discount_amount: 0, updated_at_utc: "2026-10-09 05:00:00"}
+          - {order_item_id: 2, order_id: O1,     menu_item_id: MNU_A, line_status: Served, qty: 1, unit_price: 20000, line_discount_amount: 0, updated_at_utc: "2026-10-10 05:00:00"}
+          - {order_item_id: 3, order_id: O2,     menu_item_id: MNU_A, line_status: Served, qty: 1, unit_price: 20000, line_discount_amount: 0, updated_at_utc: "2026-10-14 12:00:00"}
+          - {order_item_id: 4, order_id: O_LATE, menu_item_id: MNU_A, line_status: Served, qty: 2, unit_price: 20000, line_discount_amount: 0, updated_at_utc: "2026-10-15 02:00:00"}
+          - {order_item_id: 5, order_id: O3,     menu_item_id: MNU_A, line_status: Served, qty: 1, unit_price: 20000, line_discount_amount: 0, updated_at_utc: "2026-10-15 03:00:00"}
+      - input: ref('stg_pos__order_item_modifiers')
+        rows: []
+      - input: ref('stg_pos__promotions')
+        rows: []
+      - input: ref('int_item_std_cost_daily')
+        rows:
+          - {date_day: 2026-10-09, item_type: Menu Item, item_id: MNU_A, std_cost_per_unit: 6000}
+          - {date_day: 2026-10-10, item_type: Menu Item, item_id: MNU_A, std_cost_per_unit: 6000}
+          - {date_day: 2026-10-14, item_type: Menu Item, item_id: MNU_A, std_cost_per_unit: 6000}
+          - {date_day: 2026-10-15, item_type: Menu Item, item_id: MNU_A, std_cost_per_unit: 6000}
+    expect:
+      rows:
+        - {order_item_id: 1, order_id: O_OLD,  order_date: 2026-10-09, net_sales_amount: 20000, cogs_std_amount: 6000,  source_updated_at_utc: "2026-10-09 05:00:00"}
+        - {order_item_id: 4, order_id: O_LATE, order_date: 2026-10-09, net_sales_amount: 40000, cogs_std_amount: 12000, source_updated_at_utc: "2026-10-15 02:00:00"}
+        - {order_item_id: 3, order_id: O2,     order_date: 2026-10-14, net_sales_amount: 20000, cogs_std_amount: 6000,  source_updated_at_utc: "2026-10-14 12:00:00"}
+        - {order_item_id: 5, order_id: O3,     order_date: 2026-10-15, net_sales_amount: 20000, cogs_std_amount: 6000,  source_updated_at_utc: "2026-10-15 03:00:00"}
+
+  - name: test_order_lines_full_refresh_selects_everything
+    description: Tanpa is_incremental (build pertama / --full-refresh), semua baris dipilih tanpa filter watermark.
+    model: fct_order_lines
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_pos__orders')
+        rows:
+          - {order_id: O1, order_date: 2025-07-01, outlet_id: FLG-01, channel_code: DINE_IN, order_status: Completed, order_discount_amount: 0, updated_at_utc: "2025-07-01 05:00:00"}
+          - {order_id: O2, order_date: 2026-10-15, outlet_id: FLG-01, channel_code: DINE_IN, order_status: Cancelled, order_discount_amount: 0, updated_at_utc: "2026-10-15 05:00:00"}
+      - input: ref('stg_pos__order_items')
+        rows:
+          - {order_item_id: 1, order_id: O1, menu_item_id: MNU_A, line_status: Served, qty: 1, unit_price: 20000, line_discount_amount: 0, updated_at_utc: "2025-07-01 05:00:00"}
+          - {order_item_id: 2, order_id: O2, menu_item_id: MNU_A, line_status: Served, qty: 1, unit_price: 20000, line_discount_amount: 0, updated_at_utc: "2026-10-15 05:00:00"}
+      - input: ref('stg_pos__order_item_modifiers')
+        rows: []
+      - input: ref('stg_pos__promotions')
+        rows: []
+      - input: ref('int_item_std_cost_daily')
+        rows:
+          - {date_day: 2025-07-01, item_type: Menu Item, item_id: MNU_A, std_cost_per_unit: 6000}
+          - {date_day: 2026-10-15, item_type: Menu Item, item_id: MNU_A, std_cost_per_unit: 6000}
+    expect:
+      rows:
+        - {order_item_id: 1, is_revenue_line: true,  net_sales_amount: 20000}
+        - {order_item_id: 2, is_revenue_line: false, net_sales_amount: 0}
