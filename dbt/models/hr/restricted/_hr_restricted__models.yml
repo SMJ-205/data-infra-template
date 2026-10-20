@@ -1,0 +1,68 @@
+version: 2
+
+# Dataset hr_restricted: satu-satunya tempat PII karyawan & gaji/rating individual keluar dari raw.
+# Akses dataset: HR Manager + sa-dbt (lihat infra/hr_access.sql). Tidak pernah diekspor ke dashboard.
+models:
+  - name: rst_hr__employee_directory
+    description: Direktori karyawan lengkap (PII) dengan gaji dan rating terakhir.
+    columns:
+      - name: employee_id
+        data_tests: [not_null, unique]
+      - name: full_name
+        config: {meta: {pii: restricted}}
+      - name: phone_number
+        config: {meta: {pii: restricted}}
+      - name: email
+        config: {meta: {pii: restricted}}
+      - name: national_id
+        config: {meta: {pii: restricted}}
+        data_tests:
+          - dbt_expectations.expect_column_values_to_match_regex:
+              regex: "^[0-9]{16}$"
+      - name: birth_date
+        config: {meta: {pii: restricted}}
+      - name: base_salary_monthly
+        config: {meta: {pii: restricted}}
+
+  - name: rst_hr__compensation
+    description: Riwayat kompensasi individual (berversi).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [employee_id, effective_from]
+    columns:
+      - name: base_salary_monthly
+        config: {meta: {pii: restricted}}
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              row_condition: "base_salary_monthly is not null"
+      - name: hourly_rate
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              row_condition: "hourly_rate is not null"
+
+  - name: rst_hr__payroll
+    description: Payroll individual per bulan.
+    columns:
+      - name: payroll_id
+        data_tests: [not_null, unique]
+      - name: net_pay
+        config: {meta: {pii: restricted}}
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+      - name: gross_pay
+        config: {meta: {pii: restricted}}
+
+  - name: rst_hr__performance_reviews
+    description: Rating kinerja individual per semester.
+    columns:
+      - name: review_id
+        data_tests: [not_null, unique]
+      - name: rating
+        config: {meta: {pii: restricted}}
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4, 5]
+              quote: false

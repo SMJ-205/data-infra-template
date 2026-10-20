@@ -1,0 +1,31 @@
+unit_tests:
+  - name: test_hr_compensation_suppresses_small_groups
+    description: >
+      k-anonymity (k=3): 3 Cook di CLOUD-03 -> agregat gaji & compa-ratio tampil; 1 Outlet Manager ->
+      headcount tetap tampil tetapi semua angka gaji NULL (gaji individu tidak boleh tersimpulkan).
+    model: mart_hr_compensation_monthly
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
+    given:
+      - input: ref('rst_hr__payroll')
+        rows:
+          - {employee_id: C1, outlet_id: CLOUD-03, period_month: 2026-09-01, base_pay: 5000000, gross_pay: 5600000, overtime_pay: 0}
+          - {employee_id: C2, outlet_id: CLOUD-03, period_month: 2026-09-01, base_pay: 5200000, gross_pay: 5800000, overtime_pay: 0}
+          - {employee_id: C3, outlet_id: CLOUD-03, period_month: 2026-09-01, base_pay: 4900000, gross_pay: 5500000, overtime_pay: 0}
+          - {employee_id: M1, outlet_id: CLOUD-03, period_month: 2026-09-01, base_pay: 9000000, gross_pay: 9600000, overtime_pay: 0}
+      - input: ref('stg_hr__employees')
+        rows:
+          - {employee_id: C1, job_role: Cook, employment_type: Full-time}
+          - {employee_id: C2, job_role: Cook, employment_type: Full-time}
+          - {employee_id: C3, job_role: Cook, employment_type: Full-time}
+          - {employee_id: M1, job_role: Outlet Manager, employment_type: Full-time}
+      - input: ref('stg_hr__attendance')
+        rows: []
+      - input: ref('hr_salary_bands')
+        rows:
+          - {job_role: Cook, band_mid: 5700000}
+          - {job_role: Outlet Manager, band_mid: 10000000}
+    expect:
+      rows:
+        - {job_role: Cook,           headcount_paid: 3, is_suppressed: false, avg_base_pay: 5033333, gross_payroll_cost: 16900000, compa_ratio: 0.883}
+        - {job_role: Outlet Manager, headcount_paid: 1, is_suppressed: true,  avg_base_pay: null,    gross_payroll_cost: null,     compa_ratio: null}
