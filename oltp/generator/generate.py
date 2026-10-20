@@ -8,7 +8,8 @@ Perintah:
   apply-schema [--drop]     buat schema fnb (29 tabel) + schema sim (state generator)
   init-master               seed master (SQL) + karyawan sintetis
   backfill --start --end    simulasi historis (state inventori dimulai dari nol; menolak bila state sudah ada)
-  daily --date YYYY-MM-DD   proses 1 hari (otomatis menyusul hari yang terlewat sejak proses terakhir)
+  daily --date YYYY-MM-DD   proses 1 hari (otomatis menyusul hari yang terlewat sejak proses terakhir) + HR sync
+  hr-sync --end YYYY-MM-DD  bangun ulang data HR (hr.py) s.d. tanggal lalu upsert
   stats                     jumlah baris per tabel dan ukuran database
   reset --yes               kosongkan data transaksi dan state (master dipertahankan)
 
@@ -143,7 +144,9 @@ class Master:
         self.promos = {r[0]: (r[1], float(r[2]), r[3], r[4]) for r in q(
             "select promo_code, promo_type, promo_value, start_date, coalesce(end_date, '9999-12-31'::date) from fnb.promotions")}
         self.employees = defaultdict(lambda: defaultdict(list))
-        for eid, oid, role in q("select employee_id, outlet_id, job_role from fnb.employees order by employee_id"):
+        # hanya karyawan tetap: crew part-time (modul HR) tidak dipakai sebagai kasir/pencatat di data POS
+        for eid, oid, role in q("select employee_id, outlet_id, job_role from fnb.employees "
+                                "where employment_type = 'Full-time' order by employee_id"):
             self.employees[oid][role].append(eid)
         self._rl_cache = {}
 
@@ -854,6 +857,7 @@ def cmd_init_master(args):
     with connect() as conn:
         exec_sql_file(conn, SCHEMA_DIR / "002_seed_master.sql")
         exec_sql_file(conn, SCHEMA_DIR / "004_multilevel_bom.sql")
+        exec_sql_file(conn, SCHEMA_DIR / "005_hr.sql")
         rows = []
         for oid, ocfg in CFG["outlets"].items():
             n = 0
@@ -868,6 +872,20 @@ def cmd_init_master(args):
                             "values (%s, %s, %s, %s, %s, %s) on conflict do nothing", rows)
         conn.commit()
         print("OK: master di-seed,", len(rows), "karyawan sintetis")
+
+
+def run_hr_sync(conn, end):
+    import hr
+    sim = hr.HRSim(CFG, rnd_for, local_dt, day_flags, FIRST_NAMES, LAST_NAMES)
+    t0 = time.time()
+    summary = hr.sync(conn, sim, end)
+    print(f"HR sync s.d. {end} ({time.time() - t0:.0f}s): " +
+          ", ".join(f"{t}=+{i}/~{u}" for t, (i, u) in summary.items()))
+
+
+def cmd_hr_sync(args):
+    with connect() as conn:
+        run_hr_sync(conn, args.end)
 
 
 def cmd_backfill(args):
@@ -896,6 +914,7 @@ def cmd_daily(args):
         start = inv.as_of + dt.timedelta(days=1)
         print(f"Daily {start} .. {args.date}")
         run_days(conn, M, start, args.date, batch_days=7, fresh=False)
+        run_hr_sync(conn, args.date)
 
 
 def cmd_stats(args):
@@ -1018,6 +1037,8 @@ def main():
     p = sub.add_parser("backfill"); p.add_argument("--start", type=date_arg); p.add_argument("--end", type=date_arg)
     p.add_argument("--batch-days", type=int, default=14); p.set_defaults(fn=cmd_backfill)
     p = sub.add_parser("daily"); p.add_argument("--date", type=date_arg, required=True); p.set_defaults(fn=cmd_daily)
+    p = sub.add_parser("hr-sync", help="Bangun ulang data HR deterministik s.d. tanggal lalu upsert (idempoten)")
+    p.add_argument("--end", type=date_arg, required=True); p.set_defaults(fn=cmd_hr_sync)
     p = sub.add_parser("stats"); p.set_defaults(fn=cmd_stats)
     p = sub.add_parser("purge", help="Hapus transaksi historis lama untuk menjaga batas kapasitas Neon")
     p.add_argument("--older-than-months", type=int, default=12)

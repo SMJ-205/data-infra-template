@@ -28,6 +28,15 @@ vars:
   bom_max_depth: 10              # batas rekursi explosion BOM (int_item_explosion_daily)
   secrets_dataset: 'ops_secrets'
   'dbt_date:time_zone': 'Asia/Jakarta'
+  # ---- HR & Talent (models/hr, models/staging/hr) ----
+  # Nonaktif sampai dataset hr & hr_restricted + grant sa-dbt dibuat (infra/hr_access.sql).
+  enable_hr: false
+  hr_k_anonymity_min: 3              # agregat gaji/rating disembunyikan bila kelompok < 3 orang
+  hr_row_access: {}                  # isi untuk mengaktifkan row-level security per outlet (macros/hr_governance.sql)
+  hr_review_periods:                 # harus sama dengan hr.reviews di oltp/generator/config.yaml
+    - {period: '2025-H2', start: '2025-07-01', end: '2025-12-31'}
+    - {period: '2026-H1', start: '2026-01-01', end: '2026-06-30'}
+    - {period: '2026-H2', start: '2026-07-01', end: '2026-12-31'}
 
 models:
   fnb_data_platform:
@@ -37,6 +46,9 @@ models:
       +materialized: view
       +schema: stg
       +tags: ["staging", "daily"]
+      hr:
+        +enabled: "{{ var('enable_hr', false) }}"
+        +tags: ["staging", "daily", "hr"]
     intermediate:
       +materialized: table
       +schema: int
@@ -49,6 +61,14 @@ models:
       +materialized: table
       +schema: marts
       +tags: ["mart"]
+    hr:
+      +enabled: "{{ var('enable_hr', false) }}"
+      +materialized: table
+      +schema: hr
+      +tags: ["hr", "daily"]
+      restricted:
+        +schema: hr_restricted
+        +tags: ["hr", "restricted", "daily"]
 
 
 seeds:

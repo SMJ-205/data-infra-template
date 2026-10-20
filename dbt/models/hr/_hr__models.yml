@@ -1,0 +1,85 @@
+version: 2
+
+# Dataset hr: analitik HR untuk analis. Tidak ada PII langsung, tidak ada gaji/rating individual
+# (dijaga test assert_hr_analytics_has_no_pii & assert_hr_k_anonymity_enforced).
+models:
+  - name: dim_hr_employee
+    description: Karyawan ter-pseudonimisasi (employee_key = hash ber-salt), usia & masa kerja dalam band.
+    data_tests:
+      - no_pii_values
+    columns:
+      - name: employee_key
+        config: {meta: {pii: hashed}}
+        data_tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_match_regex:
+              regex: "^[0-9a-f]{64}$"
+      - name: age_band
+        config: {meta: {pii: generalized}}
+      - name: tenure_days
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+  - name: fct_hr_attendance
+    description: Absensi per shift terjadwal, di-key dengan employee_key.
+    data_tests:
+      - no_pii_values
+    columns:
+      - name: employee_key
+        config: {meta: {pii: hashed}}
+        data_tests:
+          - relationships:
+              to: ref('dim_hr_employee')
+              field: employee_key
+
+  - name: mart_hr_headcount_turnover_monthly
+    description: Headcount, hire, terminasi, early attrition, dan turnover % per bulan x outlet x tipe kerja.
+    data_tests:
+      - no_pii_values
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [report_month, outlet_id, employment_type]
+    columns:
+      - name: closing_headcount
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+  - name: mart_hr_recruitment_source_quarterly
+    description: Funnel rekrutmen dan retensi 90 hari per sumber lamaran per kuartal.
+    data_tests:
+      - no_pii_values
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [applied_quarter, application_source]
+
+  - name: mart_hr_compensation_monthly
+    description: Biaya payroll, lembur, dan compa-ratio per bulan x outlet x jabatan, dengan k-anonymity.
+    data_tests:
+      - no_pii_values
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [period_month, outlet_id, job_role, employment_type]
+    columns:
+      - name: avg_base_pay
+        config: {meta: {pii: aggregated}}
+      - name: median_base_pay
+        config: {meta: {pii: aggregated}}
+      - name: compa_ratio
+        description: Rata-rata gaji pokok / titik tengah band pasar. < 0.90 = di bawah pasar.
+
+  - name: mart_hr_labor_cost_monthly
+    description: Payroll aktual vs anggaran LABOR (operating_expenses) dan % terhadap net sales per outlet.
+    data_tests:
+      - no_pii_values
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [period_month, outlet_id]
+
+  - name: mart_hr_workforce_semiannual
+    description: Kehadiran, keterlambatan, lembur, dan rating kinerja rata-rata per semester x outlet x jabatan.
+    data_tests:
+      - no_pii_values
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [review_period, outlet_id, job_role]
+    columns:
+      - name: avg_rating
+        config: {meta: {pii: aggregated}}

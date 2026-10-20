@@ -1,0 +1,41 @@
+version: 2
+
+sources:
+  - name: hr
+    description: >
+      Modul HR & Talent di OLTP (schema fnb, 005_hr.sql), di-ingest dlt ke raw_fnb. Berisi PII karyawan & kandidat
+      serta data gaji. Hanya model di models/hr/restricted yang boleh membaca kolom PII / gaji individual apa adanya.
+    database: "{{ env_var('GCP_PROJECT_ID', 'fnb-data-platform') }}"
+    schema: "{{ var('hr_raw_schema', 'raw_fnb') }}"   # override hanya untuk uji di dataset dev
+    tables:
+      - name: employees
+        columns:
+          - name: full_name
+            meta: {pii: true}
+          - name: phone_number
+            meta: {pii: true}
+          - name: national_id
+            meta: {pii: true}
+          - name: birth_date
+            meta: {pii: true}
+          - name: email
+            meta: {pii: true}
+      - name: employee_compensation
+        meta: {sensitivity: salary}
+      - name: payroll
+        meta: {sensitivity: salary}
+        loaded_at_field: updated_at
+      - name: performance_reviews
+        meta: {sensitivity: performance}
+      - name: attendance
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 26, period: hour}
+          error_after: {count: 50, period: hour}
+      - name: job_requisitions
+      - name: job_applications
+        columns:
+          - name: candidate_name
+            meta: {pii: true}
+          - name: candidate_phone
+            meta: {pii: true}

@@ -22,3 +22,14 @@ seeds:
         event_type: string
         start_date: date
         end_date: date
+
+  - name: hr_salary_bands
+    description: Band gaji pasar (asumsi, Jakarta 2025) per jabatan full-time; dasar compa-ratio.
+    config:
+      schema: core
+      enabled: "{{ var('enable_hr', false) }}"
+      column_types:
+        job_role: string
+        band_min: numeric
+        band_mid: numeric
+        band_max: numeric

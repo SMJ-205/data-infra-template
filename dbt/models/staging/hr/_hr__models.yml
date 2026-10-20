@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: stg_hr__employees
+    description: Karyawan tanpa PII langsung (nama/telepon/NIK/email dibuang, tanggal lahir -> tahun).
+    data_tests:
+      - no_pii_values
+      - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: terminated_date
+          column_B: hired_date
+          or_equal: true
+          row_condition: "terminated_date is not null"
+    columns:
+      - name: employee_id
+        data_tests: [not_null, unique]
+      - name: birth_year
+        config:
+          meta: {pii: generalized}
+
+  - name: stg_hr__attendance
+    data_tests:
+      - no_pii_values
+      - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: clock_out_at_local
+          column_B: clock_in_at_local
+          row_condition: "clock_in_at_local is not null"
+    columns:
+      - name: attendance_id
+        data_tests: [not_null, unique]
+      - name: worked_hours
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 16
+
+  - name: stg_hr__job_requisitions
+    data_tests:
+      - no_pii_values
+    columns:
+      - name: requisition_id
+        data_tests: [not_null, unique]
+
+  - name: stg_hr__job_applications
+    description: Lamaran kerja; identitas kandidat diganti candidate_key (hash ber-salt).
+    data_tests:
+      - no_pii_values
+    columns:
+      - name: application_id
+        data_tests: [not_null, unique]
+      - name: application_source
+        data_tests:
+          - accepted_values:
+              values: ['Referral', 'JobStreet', 'Instagram', 'Walk-in']
+      - name: candidate_key
+        config:
+          meta: {pii: hashed}
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_match_regex:
+              regex: "^[0-9a-f]{64}$"

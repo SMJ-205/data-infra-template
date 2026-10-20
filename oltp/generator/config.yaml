@@ -138,3 +138,49 @@ inventory:
     ING_GARLIC:  [SUP04, kg, 1000]
     ING_CHILI:   [SUP04, kg, 1000]
     ING_OIL:     [SUP06, liter, 1000]
+
+# ------------------------------------------------------------------- HR & Talent (hr.py)
+# Karyawan tetap (staff di atas) tidak di-resign-kan agar referensi kasir/manager di data POS historis tetap valid.
+# Turnover disimulasikan pada crew part-time; setiap yang keluar memicu requisition pengganti + funnel rekrutmen.
+hr:
+  email_domain: ngemeal.co.id
+  base_salary: {Outlet Manager: 9500000, Supervisor: 7000000, Barista: 5200000, Cook: 5400000, Cashier: 4900000}
+  outlet_salary_factor: {FLG-01: 1.05, KIOSK-02: 1.0, CLOUD-03: 0.92}   # story: CLOUD-03 di bawah pasar
+  allowance_monthly: 600000
+  bpjs_pct: 3.0
+  standard_hours_per_month: 173
+  overtime_multiplier: 1.5
+  annual_raise_date: 2026-01-01
+  raise_pct_by_rating: {1: 0.0, 2: 2.0, 3: 4.0, 4: 6.0, 5: 8.0}
+  full_time:
+    shift_hours: 8
+    leave_days_per_year: 12
+    late_prob: 0.05
+    absent_prob: 0.02
+    overtime_prob: 0.10
+    # story: cook CLOUD-03 lembur saat hujan (pesanan online +25%)
+    rainy_overtime: {outlet: CLOUD-03, role: Cook, prob: 0.6, hours: [1, 3]}
+  part_time:
+    headcount: {FLG-01: 8, KIOSK-02: 4, CLOUD-03: 6}
+    roles: {Barista: 0.5, Cashier: 0.3, Cook: 0.2}
+    hourly_rate: 25000
+    shift_hours: 5
+    shift_prob: 0.57                     # ~4 shift / minggu
+    late_prob: 0.08
+    absent_prob: 0.04
+    monthly_attrition: {default: 0.12, Referral: 0.05}
+    early_tenure_days: 90                # hazard x2 pada 90 hari pertama (early attrition)
+    termination_reason: {Resign: 0.70, Contract End: 0.20, Dismissed: 0.10}
+  recruitment:
+    applications_per_requisition: [5, 12]
+    application_window_days: 10
+    source_weights: {JobStreet: 0.35, Instagram: 0.25, Referral: 0.20, Walk-in: 0.20}
+    screen_pass: {Referral: 0.80, JobStreet: 0.50, Instagram: 0.45, Walk-in: 0.55}
+    interview_pass: {Referral: 0.60, JobStreet: 0.35, Instagram: 0.30, Walk-in: 0.40}
+    offer_accept: {Referral: 0.95, JobStreet: 0.80, Instagram: 0.75, Walk-in: 0.85}
+    withdraw_prob: 0.08
+    start_after_accept_days: [3, 7]
+  reviews:
+    - {period: 2025-H2, start: 2025-07-01, end: 2025-12-31, reviewed_on: 2026-01-10}
+    - {period: 2026-H1, start: 2026-01-01, end: 2026-06-30, reviewed_on: 2026-07-10}
+    - {period: 2026-H2, start: 2026-07-01, end: 2026-12-31, reviewed_on: 2027-01-10}

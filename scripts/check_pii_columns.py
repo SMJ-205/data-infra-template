@@ -1,17 +1,23 @@
-"""Gagal jika kolom bernama mirip PII tidak ditandai meta.pii di YAML model."""
+"""Gagal jika kolom bernama mirip PII / gaji individual tidak ditandai meta.pii di YAML model.
+
+meta.pii yang sah: hashed, generalized, dropped, aggregated (agregat ber-k-anonymity), dan restricted
+(apa adanya) - restricted HANYA sah untuk model di folder */restricted/ (dataset hr_restricted).
+"""
 import pathlib
 import re
 import sys
 
 import yaml
 
-PII = re.compile(r"(email|phone|telp|mobile|hp|dob|birth|nik|account_number|full_name|address|alamat)", re.I)
+PII = re.compile(r"(email|phone|telp|mobile|hp|dob|birth|nik|national_id|account_number|full_name|address|alamat"
+                 r"|salary|base_pay|net_pay|gross_pay|rating)", re.I)
 NAME_EXEMPTIONS = {
     "outlet_name", "menu_name", "channel_name", "reason_name",
     "category_name", "metric_name", "table_name", "supplier_name",
     "ingredient_name",
 }
-ALLOWED = {"hashed", "generalized", "dropped"}
+ALLOWED = {"hashed", "generalized", "dropped", "aggregated"}
+RESTRICTED_ONLY = {"restricted"}
 
 bad = []
 model_dir = sys.argv[1] if len(sys.argv) > 1 else "dbt/models"
@@ -28,7 +34,13 @@ for path in pathlib.Path(model_dir).rglob("*.yml"):
             is_pii = bool(PII.search(col_name))
             if not is_pii and re.search(r"(^|_)name$", col_name, re.I) and col_name.lower() not in NAME_EXEMPTIONS:
                 is_pii = True
-            if is_pii and meta.get("pii") not in ALLOWED:
+            if not is_pii:
+                continue
+            tag = meta.get("pii")
+            in_restricted = "restricted" in path.parts
+            if tag in RESTRICTED_ONLY and not in_restricted:
+                bad.append(f"{path}: {model.get('name', 'unknown')}.{col_name} (pii: restricted di luar folder restricted)")
+            elif tag not in ALLOWED and not (tag in RESTRICTED_ONLY and in_restricted):
                 bad.append(f"{path}: {model.get('name', 'unknown')}.{col_name}")
 
 # Scan dashboard exported JSON files if directory exists

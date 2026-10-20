@@ -1,6 +1,6 @@
 """Ingest OLTP Neon (schema fnb) -> BigQuery dataset raw_fnb via dlt.
 
-Semua 29 tabel: incremental berdasarkan updated_at, merge by primary key (direfleksi dari Postgres).
+Semua tabel (29 POS + 6 HR): incremental berdasarkan updated_at, merge by primary key (direfleksi dari Postgres).
 Memakai BigQuery load jobs (gratis, bukan streaming insert).
 """
 import os
@@ -15,6 +15,8 @@ TABLES = [
     "orders", "order_items", "order_item_modifiers", "payments", "refunds",
     "goods_receipts", "goods_receipt_lines", "stock_counts", "stock_count_lines",
     "waste_reasons", "waste_logs", "expense_categories", "operating_expenses",
+    # modul HR (005_hr.sql) - berisi PII & data gaji; hanya boleh dibaca dbt (sa-dbt) dan dataset hr_restricted
+    "employee_compensation", "attendance", "payroll", "performance_reviews", "job_requisitions", "job_applications",
 ]
 
 
