@@ -22,12 +22,17 @@
 
 {% macro bigquery__get_empty_subquery_sql(select_sql, select_sql_header=none) -%}
     {%- set body = recursive_final_body(select_sql) -%}
-    {%- if body is none -%}
-        {{ dbt_bigquery.bigquery__get_empty_subquery_sql(select_sql, select_sql_header) }}
-    {%- else -%}
-        {%- if select_sql_header is not none -%}
-        {{ select_sql_header }}
-        {%- endif %}
+    {%- if select_sql_header is not none -%}
+    {{ select_sql_header }}
+    {%- endif -%}
+    {%- if body is none %}
+    {#- sama dengan implementasi bawaan dbt-bigquery -#}
+    select * from (
+        {{ select_sql }}
+    ) as __dbt_sbq
+    where false and current_timestamp() = current_timestamp()
+    limit 0
+    {%- else %}
 {{ body }}
 select * from final
 where false and current_timestamp() = current_timestamp()

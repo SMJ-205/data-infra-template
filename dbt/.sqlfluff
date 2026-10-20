@@ -15,3 +15,7 @@ capitalisation_policy = lower
 
 [sqlfluff:rules:capitalisation.functions]
 extended_capitalisation_policy = lower
+
+[sqlfluff:indentation]
+# blok {% if is_incremental() %} tidak menambah level indent (CTE di dalamnya tetap rata kiri)
+template_blocks_indent = false
