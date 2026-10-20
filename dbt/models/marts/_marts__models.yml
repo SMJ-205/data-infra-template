@@ -77,3 +77,29 @@ models:
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [report_date, outlet_id, category_name]
+
+  - name: mart_inventory_position_daily
+    description: >
+      Posisi stok harian per outlet (nilai stok, hari stok berbobot nilai, susut opname, jumlah bahan kritis)
+      dari fct_inventory_balance_daily. Sumber tab "Stok & Susut" dashboard Vercel.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [balance_date, outlet_id]
+    columns:
+      - name: shrinkage_value
+        description: Nilai susut opname (Rp) pada hari opname; positif = stok hilang, negatif = surplus.
+
+  - name: mart_inventory_ingredient_status
+    description: >
+      Status stok terkini per outlet x bahan (Habis / Kritis / Risiko Kedaluwarsa / Tidak Bergerak / Normal)
+      plus kinerja susut 90 hari. Sumber tabel status bahan di dashboard.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [outlet_id, ingredient_id]
+    columns:
+      - name: stock_status
+        data_tests:
+          - accepted_values:
+              values: ['Habis', 'Kritis', 'Risiko Kedaluwarsa', 'Tidak Bergerak', 'Normal']
+      - name: shrinkage_pct_90d
+        description: Susut 90 hari sebagai % dari pemakaian teoretis (sales + waste); positif = stok hilang.

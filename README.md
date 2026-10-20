@@ -33,7 +33,7 @@ flowchart LR
     end
 
     subgraph SERVING["5. Serving Layer"]
-        VERCEL["Vercel Static Web<br/>• Dark Glassmorphism UI<br/>• 6 Interactive Tabs<br/>• Kasavana-Smith Matrix<br/>• Static JSON (< 5.5 MB)"]
+        VERCEL["Vercel Static Web<br/>• Dark Glassmorphism UI<br/>• 7 Interactive Tabs<br/>• Kasavana-Smith Matrix<br/>• Static JSON (< 5.5 MB)"]
         GSHEETS["Google Sheets & Apps Script<br/>• Daily Cache Sync<br/>• Multi-Channel KPI Alerts<br/>• Web App Dashboard"]
     end
 
@@ -62,6 +62,7 @@ Dashboard web interaktif (*client-side SPA*) berbasis HTML5, Vanilla CSS, dan Ch
 - **Tren Kinerja Finansial**: Grafik harian Net Sales vs Food Cost % terhadap batas ambang target (32% Warn, 35% Critical) dari seed dbt.
 - **Dimensi Interaktif**: Filter konsolidasi atau spesifik per outlet (`Semua Outlet`, `FLG-01`, `KIOSK-02`, `CLOUD-03`), preset periode waktu (MTD/Custom), dan kategori menu.
 - **Fitur Analitik Lanjutan**: Tab terintegrasi untuk Menu Engineering (Kasavana-Smith Matrix), Kanal Penjualan & Heatmap Traffic, What-If Margin Simulator, serta Marts Data Explorer.
+- **Stok & Susut**: Nilai stok harian per outlet, hari stok berbobot nilai, susut opname bulanan, dan tabel status setiap bahan (Habis / Kritis / Risiko Kedaluwarsa / Tidak Bergerak / Normal) dari `fct_inventory_balance_daily`. Ambang kritis membedakan bahan segar yang dikirim harian.
 
 ![Nge-Meal Multi-Outlet Performance Intelligence Dashboard](docs/images/dashboard_web_intelligence.png)
 
@@ -120,6 +121,13 @@ Dataset mensimulasikan jaringan F&B multi-outlet (3 gerai: Flagship Sudirman `FL
    - Saldo per outlet × bahan × hari (spine padat): stock opname terakhir + pergerakan bersih sesudahnya, di-reset setiap opname. Kolom yang tersedia: `count_variance_qty` (susut), `days_on_hand` (stok ÷ rata-rata pemakaian 28 hari), valuasi `on_hand_value`, dan `is_negative_on_hand`.
    - **Tidak menghitung ulang seluruh histori**: ringkasan pergerakan dibandingkan dengan isi tabel untuk mencari tanggal pertama yang berubah (hari baru, order telat, koreksi receipt). Perhitungan dimulai dari awal bulan tanggal itu, saldo dilanjutkan dari baris hari sebelumnya, dan 27 hari sebelumnya ikut dibaca sebagai konteks rata-rata pemakaian. Pada hari normal hanya bulan berjalan yang dihitung (±1.100 dari 28.500 baris), dan saat tidak ada perubahan tidak ada partisi yang ditulis.
    - **Rekonsiliasi dua jalur**: test `assert_inventory_balance_reconciles_variance` memastikan selisih opname di saldo harian sama persis dengan `-unexplained_variance_qty` di `mart_inventory_variance`, yang dihitung dengan cara berbeda (periode antar-opname). Data menangkap story overpour susu KIOSK-02: susut **5,99%** dari pemakaian teoretis (ditanam 6%).
+9. **HR & Talent Analytics dengan PII Data Governance (`models/hr`)**:
+   - **Data simulasi**: 29 karyawan tetap dengan PII (NIK, tanggal lahir, email), gaji berversi, absensi, payroll, dan review kinerja per semester, ditambah crew part-time sebagai sumber turnover. Setiap crew yang keluar memicu requisition dan funnel rekrutmen (screening → interview → offer → hire). Generator `hr.py` bersifat deterministik dan idempoten: hanya baris yang berubah yang menaikkan `updated_at`.
+   - **Tiga lapis akses**: PII hanya keluar dari `raw_fnb` ke dataset `hr_restricted` (HR Manager). Dataset `hr` (analis) hanya berisi `employee_key` hash ber-salt, usia dan masa kerja dalam band, serta agregat gaji/rating ber-**k-anonymity** (kelompok < 3 orang disembunyikan, misalnya Outlet Manager yang hanya 1 per outlet). Row-level security per outlet dipasang ulang lewat post-hook setiap build, karena tabel yang dibangun ulang dbt kehilangan policy-nya. Grant ditulis di [`infra/hr_access.sql`](infra/hr_access.sql).
+   - **Governance yang diuji, bukan sekadar dijanjikan**: (1) `assert_hr_analytics_has_no_pii` memindai `INFORMATION_SCHEMA` dataset `hr`. (2) Generic test `no_pii_values` memindai **isi** setiap baris (termasuk STRUCT) untuk pola telepon, email, dan NIK. Test ini menangkap bug nyata saat pengembangan: CTE bernama `source` membuat BigQuery menyalin seluruh baris lamaran (nama + telepon kandidat) ke kolom `application_source`, dan test berbasis nama kolom tidak mendeteksinya. (3) `assert_hr_k_anonymity_enforced`. (4) `check_pii_columns.py` menolak tag `pii: restricted` di luar folder restricted.
+   - **Kualitas data**: tanggal resign ≥ tanggal masuk, absensi hanya dalam masa kerja, tahapan rekrutmen berurutan, payroll net = gross − potongan, dan headcount bulanan konsisten (closing = opening bulan berikutnya).
+   - **Cerita bisnis**: rekrutan dari referral punya konversi 23% (jalur lain 8–11%) dan paling jarang keluar dalam 90 hari. Cook di CLOUD-03 dibayar di bawah pasar (compa-ratio 0,88) dan lembur ±16 jam/bulan, sekitar 4× jabatan lain.
+   - **Aktivasi**: model HR nonaktif secara default (`enable_hr: false`) karena `sa-dbt` belum punya akses ke dataset `hr` dan `hr_restricted`. Jalankan `infra/hr_access.sql`, lalu set `enable_hr: true`.
 
 ---
 
@@ -194,6 +202,7 @@ Gunakan tag dbt untuk menjalankan sub-DAG secara modular dan hemat resource:
 
 - **Zero Hardcoded Secrets**: Tidak ada file service account JSON key di repositori maupun GitHub Secrets. Seluruh autentikasi GitHub Actions menggunakan Google Cloud Workload Identity Federation (WIF).
 - **Automated PII Guard**: Kolom pelanggan sensitif (`full_name`, `phone`, `email`, `address`) otomatis di-masking/hashing via macro dbt dan divalidasi oleh `check_pii_columns.py` sebelum di-publish.
+- **HR Data Governance**: PII dan gaji karyawan hanya ada di `hr_restricted`. Dataset analitik `hr` dijaga test metadata, pemindaian isi baris, dan k-anonymity. Data HR tidak pernah diekspor ke dashboard publik.
 - **Slim CI PR**: Setiap Pull Request memicu workflow `pr_ci.yml` yang menjalankan SQLFluff linter, PII guard, serta membangun hanya model yang berubah (`state:modified+`) pada dataset sementara `dbt_ci_pr<PR_NUMBER>_*` yang otomatis dihapus setelah pengujian selesai.
 
 ---
