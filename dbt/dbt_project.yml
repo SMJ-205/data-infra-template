@@ -25,6 +25,7 @@ vars:
   local_tz: 'Asia/Jakarta'
   start_date: "date '2025-07-01'"
   lookback_days: 3
+  bom_max_depth: 10              # batas rekursi explosion BOM (int_item_explosion_daily)
   secrets_dataset: 'ops_secrets'
   'dbt_date:time_zone': 'Asia/Jakarta'
 
