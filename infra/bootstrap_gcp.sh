@@ -87,6 +87,10 @@ log "Dataset, grant dataset, dan salt PII (bigquery_setup.sql)"
 sed "s/<PROJECT_ID>/${PROJECT}/g; s/<REGION>/${REGION}/g" "$HERE/bigquery_setup.sql" \
   | bq query --project_id="$PROJECT" --location="$REGION" --use_legacy_sql=false --quiet
 
+log "Cabut akses bawaan projectReaders dari dataset raw ber-PII"
+# Dataset baru otomatis memberi READER ke projectReaders: semua Viewer project bisa membaca PII mentah.
+GCP_PROJECT_ID="$PROJECT" python3 "$HERE/revoke_project_readers.py" raw_fnb
+
 # ------------------------------------------------------------ Budget alert (opsional)
 if [[ -n "${GCP_BILLING_ACCOUNT_ID:-}" ]]; then
   BUDGET_AMOUNT="${GCP_BUDGET_AMOUNT:-1USD}"
