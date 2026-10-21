@@ -72,24 +72,8 @@ run_sql() { render_sql | bq query --project_id="$PROJECT" --location="$REGION" -
 retry run_sql
 
 log "Cabut akses bawaan projectReaders dari hr_restricted"
-# Dataset baru otomatis memberi READER ke projectReaders: siapa pun dengan role Viewer di level project bisa
-# membaca PII. hr_restricted hanya boleh dibaca principal yang di-grant eksplisit (HR Manager, sa-dbt).
-# projectWriters/projectOwners (Editor/Owner project) sengaja dipertahankan sebagai akses administratif.
-PROJECT="$PROJECT" python3 - <<'PY'
-import os
-from google.cloud import bigquery
-
-client = bigquery.Client(project=os.environ["PROJECT"])
-ds = client.get_dataset(f"{os.environ['PROJECT']}.hr_restricted")
-keep = [e for e in ds.access_entries
-        if not (e.entity_type == "specialGroup" and e.entity_id == "projectReaders")]
-if len(keep) == len(ds.access_entries):
-    print("projectReaders sudah tidak ada, dilewati.")
-else:
-    ds.access_entries = keep
-    client.update_dataset(ds, ["access_entries"])          # memakai etag: gagal bila ACL diubah bersamaan
-    print("projectReaders dicabut dari hr_restricted.")
-PY
+# Dataset baru otomatis memberi READER ke projectReaders (semua Viewer project bisa membaca PII).
+GCP_PROJECT_ID="$PROJECT" python3 "$HERE/revoke_project_readers.py" hr_restricted
 
 log "Ringkasan akses dataset"
 for ds in hr hr_restricted; do

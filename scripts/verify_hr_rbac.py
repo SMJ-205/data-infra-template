@@ -23,6 +23,7 @@ TABLES = {
     "hr_restricted (PII & gaji)": f"`{PROJECT}.hr_restricted.rst_hr__employee_directory`",
     "raw_fnb (mentah)": f"`{PROJECT}.raw_fnb.employees`",
 }
+PII_DATASETS = ["raw_fnb", "hr_restricted"]
 # (role, tabel) -> boleh membaca?
 EXPECTED = {
     ("analyst", "hr (ter-masking)"): True,
@@ -65,11 +66,15 @@ def main():
             failures += status != "OK"
             fmt = lambda v: "boleh" if v else ("ditolak" if v is False else "?")
             print(f"{role:8s} {label:28s} {fmt(want):9s} {fmt(ok):9s} {detail}  [{status}]")
-    # ACL hr_restricted: tidak boleh ada akses bawaan projectReaders (semua Viewer project bisa membaca PII)
-    acl = bigquery.Client(project=PROJECT, location=LOCATION).get_dataset(f"{PROJECT}.hr_restricted").access_entries
-    leaky = any(e.entity_type == "specialGroup" and e.entity_id == "projectReaders" for e in acl)
-    failures += leaky
-    print(f"\nACL hr_restricted tanpa projectReaders: {'TIDAK SESUAI (jalankan infra/setup_hr_demo.sh)' if leaky else 'OK'}")
+    # ACL dataset ber-PII: tidak boleh ada akses bawaan projectReaders (semua Viewer project bisa membaca PII)
+    owner = bigquery.Client(project=PROJECT, location=LOCATION)
+    print()
+    for ds in PII_DATASETS:
+        acl = owner.get_dataset(f"{PROJECT}.{ds}").access_entries
+        leaky = any(e.entity_type == "specialGroup" and e.entity_id == "projectReaders" for e in acl)
+        failures += leaky
+        fix = f"TIDAK SESUAI (python3 infra/revoke_project_readers.py {ds})"
+        print(f"ACL {ds} tanpa projectReaders: {fix if leaky else 'OK'}")
     print("\nRBAC sesuai harapan." if not failures else f"\n{failures} pemeriksaan TIDAK SESUAI.")
     sys.exit(1 if failures else 0)
 
