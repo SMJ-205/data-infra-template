@@ -20,6 +20,12 @@ TABLES = [
 ]
 
 
+# tabel -> kolom NOT NULL yang ditambahkan lewat migration setelah tabel pertama kali di-ingest
+ADDED_NOT_NULL_COLUMNS = {
+    "employees": ["employment_type"],          # 005_hr.sql
+}
+
+
 def get_db_credentials() -> str:
     url = os.environ.get("SOURCE_DATABASE_URL")
     if not url:
@@ -51,6 +57,12 @@ def main() -> None:
             incremental=dlt.sources.incremental("updated_at", lag=3600.0),
             write_disposition="merge",
         )
+
+    # Kolom NOT NULL yang ditambahkan ke tabel yang SUDAH ada di BigQuery (ALTER TABLE ... ADD COLUMN ... NOT NULL
+    # DEFAULT di Postgres) harus di-ingest sebagai nullable: BigQuery menolak menambah kolom REQUIRED ke tabel
+    # yang sudah ada ("Cannot add required fields to an existing schema"). Tabel baru tidak terpengaruh.
+    for name, cols in ADDED_NOT_NULL_COLUMNS.items():
+        source.resources[name].apply_hints(columns={c: {"name": c, "nullable": True} for c in cols})
 
     destination = dlt.destinations.bigquery(location=location)
 
