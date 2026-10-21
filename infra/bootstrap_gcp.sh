@@ -89,7 +89,8 @@ sed "s/<PROJECT_ID>/${PROJECT}/g; s/<REGION>/${REGION}/g" "$HERE/bigquery_setup.
 
 log "Cabut akses bawaan projectReaders dari dataset raw ber-PII"
 # Dataset baru otomatis memberi READER ke projectReaders: semua Viewer project bisa membaca PII mentah.
-GCP_PROJECT_ID="$PROJECT" python3 "$HERE/revoke_project_readers.py" raw_fnb
+# raw_fnb_staging: dataset transit merge dlt, sempat berisi baris mentah yang sama.
+GCP_PROJECT_ID="$PROJECT" python3 "$HERE/revoke_project_readers.py" raw_fnb raw_fnb_staging
 
 # ------------------------------------------------------------ Budget alert (opsional)
 if [[ -n "${GCP_BILLING_ACCOUNT_ID:-}" ]]; then

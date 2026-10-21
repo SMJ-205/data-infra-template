@@ -5,7 +5,7 @@ bisa membaca isinya. Dataset ber-PII hanya boleh dibaca principal yang di-grant 
 projectWriters/projectOwners (Editor/Owner project) sengaja dipertahankan sebagai akses administratif.
 Idempoten; update memakai etag sehingga gagal bila ACL diubah bersamaan.
 
-Pemakaian:  set -a && source .env && set +a && python3 infra/revoke_project_readers.py raw_fnb hr_restricted
+Pemakaian:  set -a && source .env && set +a && python3 infra/revoke_project_readers.py raw_fnb raw_fnb_staging hr_restricted
 """
 import os
 import sys
