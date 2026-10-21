@@ -59,12 +59,19 @@ jobs:
             sqlfluff lint $CHANGED --format github-annotation-native --nofail
           fi
 
+      # sa-github-ci tidak punya akses ke raw_fnb / hr_restricted (PII). Model yang membaca raw langsung
+      # (staging, hr/restricted) hanya di-compile; turunannya dibangun dengan defer ke versi prod. View stg prod
+      # tetap terbaca karena dataset stg di-otorisasi pada raw_fnb (infra/restrict_raw_ci_access.py).
+      - name: Compile model yang membaca raw langsung
+        run: dbt compile --target ci --select "path:models/staging" "path:models/hr/restricted"
+
       - name: Slim CI build
         run: |
+          EXCLUDE='path:models/staging path:models/hr/restricted'
           if [ -f prod_state/manifest.json ]; then
-            dbt build --target ci --select state:modified+ --defer --state prod_state
+            dbt build --target ci --select state:modified+ --exclude $EXCLUDE --defer --state prod_state
           else
-            dbt build --target ci
+            dbt build --target ci --exclude $EXCLUDE
           fi
 
       - name: Hapus dataset CI
