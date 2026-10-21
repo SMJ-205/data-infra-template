@@ -2,6 +2,8 @@ version: 2
 
 models:
   - name: stg_hr__employees
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Karyawan tanpa PII langsung (nama/telepon/NIK/email dibuang, tanggal lahir -> tahun).
     data_tests:
       - no_pii_values
@@ -18,6 +20,8 @@ models:
           meta: {pii: generalized}
 
   - name: stg_hr__attendance
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     data_tests:
       - no_pii_values
       - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
@@ -34,6 +38,8 @@ models:
               max_value: 16
 
   - name: stg_hr__job_requisitions
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     data_tests:
       - no_pii_values
     columns:
@@ -41,6 +47,8 @@ models:
         data_tests: [not_null, unique]
 
   - name: stg_hr__job_applications
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Lamaran kerja; identitas kandidat diganti candidate_key (hash ber-salt).
     data_tests:
       - no_pii_values
