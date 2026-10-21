@@ -23,7 +23,7 @@ TABLES = {
     "hr_restricted (PII & gaji)": f"`{PROJECT}.hr_restricted.rst_hr__employee_directory`",
     "raw_fnb (mentah)": f"`{PROJECT}.raw_fnb.employees`",
 }
-PII_DATASETS = ["raw_fnb", "hr_restricted"]
+PII_DATASETS = ["raw_fnb", "raw_fnb_staging", "hr_restricted"]
 # (role, tabel) -> boleh membaca?
 EXPECTED = {
     ("analyst", "hr (ter-masking)"): True,
