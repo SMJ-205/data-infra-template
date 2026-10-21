@@ -1,16 +1,18 @@
 {
-  "data_through": "2026-10-19",
-  "generated_at_utc": "2026-10-20T16:16:14+00:00",
+  "data_through": "2026-10-20",
+  "generated_at_utc": "2026-10-21T00:46:07+00:00",
   "rows": {
     "category_daily": 6720,
     "channel_daily": 5822,
-    "inventory_variance": 4620,
+    "inventory_position": 1350,
+    "inventory_status": 72,
+    "inventory_variance": 4560,
     "kpi_status": 288,
     "menu_engineering": 750,
     "orders_hourly": 1267,
     "pnl_daily": 1350,
     "pnl_monthly": 48,
-    "waste": 2344
+    "waste": 2356
   },
-  "total_size_kb": 6730.7
+  "total_size_kb": 7116.7
 }
