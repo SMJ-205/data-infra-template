@@ -4,6 +4,8 @@ version: 2
 # (dijaga test assert_hr_analytics_has_no_pii & assert_hr_k_anonymity_enforced).
 models:
   - name: dim_hr_employee
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Karyawan ter-pseudonimisasi (employee_key = hash ber-salt), usia & masa kerja dalam band.
     data_tests:
       - no_pii_values
@@ -23,6 +25,8 @@ models:
               min_value: 0
 
   - name: fct_hr_attendance
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Absensi per shift terjadwal, di-key dengan employee_key.
     data_tests:
       - no_pii_values
@@ -35,6 +39,8 @@ models:
               field: employee_key
 
   - name: mart_hr_headcount_turnover_monthly
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Headcount, hire, terminasi, early attrition, dan turnover % per bulan x outlet x tipe kerja.
     data_tests:
       - no_pii_values
@@ -47,6 +53,8 @@ models:
               min_value: 0
 
   - name: mart_hr_recruitment_source_quarterly
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Funnel rekrutmen dan retensi 90 hari per sumber lamaran per kuartal.
     data_tests:
       - no_pii_values
@@ -54,6 +62,8 @@ models:
           combination_of_columns: [applied_quarter, application_source]
 
   - name: mart_hr_compensation_monthly
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Biaya payroll, lembur, dan compa-ratio per bulan x outlet x jabatan, dengan k-anonymity.
     data_tests:
       - no_pii_values
@@ -68,6 +78,8 @@ models:
         description: Rata-rata gaji pokok / titik tengah band pasar. < 0.90 = di bawah pasar.
 
   - name: mart_hr_labor_cost_monthly
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Payroll aktual vs anggaran LABOR (operating_expenses) dan % terhadap net sales per outlet.
     data_tests:
       - no_pii_values
@@ -75,6 +87,8 @@ models:
           combination_of_columns: [period_month, outlet_id]
 
   - name: mart_hr_workforce_semiannual
+    config:
+      enabled: "{{ var('enable_hr', false) }}"
     description: Kehadiran, keterlambatan, lembur, dan rating kinerja rata-rata per semester x outlet x jabatan.
     data_tests:
       - no_pii_values
