@@ -1,3 +1,11 @@
+{{
+  config(
+    materialized = 'table',
+    tags = ['staging', 'security']
+  )
+}}
+-- Tabel (bukan view), sama seperti stg_pos__customers: hash dihitung saat build sehingga pembaca stg tidak
+-- membutuhkan akses ke ops_secrets.pii_salt.
 -- Nama & telepon kandidat tidak dibawa; candidate_key (hash ber-salt dari telepon ternormalisasi) cukup
 -- untuk mendeteksi pelamar berulang tanpa membuka identitas.
 -- CTE sengaja tidak dinamai `source`: tabel ini punya kolom `source`, dan di BigQuery `source` akan

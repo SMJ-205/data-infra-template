@@ -92,6 +92,9 @@ log "Cabut akses bawaan projectReaders dari dataset raw ber-PII"
 # raw_fnb_staging: dataset transit merge dlt, sempat berisi baris mentah yang sama.
 GCP_PROJECT_ID="$PROJECT" python3 "$HERE/revoke_project_readers.py" raw_fnb raw_fnb_staging
 
+log "Authorized dataset: view stg boleh membaca raw_fnb (CI & pembaca stg tidak butuh akses raw)"
+GCP_PROJECT_ID="$PROJECT" python3 "$HERE/restrict_raw_ci_access.py"
+
 # ------------------------------------------------------------ Budget alert (opsional)
 if [[ -n "${GCP_BILLING_ACCOUNT_ID:-}" ]]; then
   BUDGET_AMOUNT="${GCP_BUDGET_AMOUNT:-1USD}"

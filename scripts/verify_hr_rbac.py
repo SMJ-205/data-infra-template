@@ -75,6 +75,15 @@ def main():
         failures += leaky
         fix = f"TIDAK SESUAI (python3 infra/revoke_project_readers.py {ds})"
         print(f"ACL {ds} tanpa projectReaders: {fix if leaky else 'OK'}")
+    raw_acl = owner.get_dataset(f"{PROJECT}.raw_fnb").access_entries
+    ci_sa = f"sa-github-ci@{PROJECT}.iam.gserviceaccount.com"
+    ci_direct = any(e.entity_type == "userByEmail" and e.entity_id == ci_sa for e in raw_acl)
+    stg_authorized = any(e.entity_type == "dataset" and (e.entity_id or {}).get("dataset", {}).get("datasetId") == "stg"
+                         for e in raw_acl)
+    failures += ci_direct + (not stg_authorized)
+    print(f"raw_fnb tanpa akses langsung sa-github-ci: {'TIDAK SESUAI' if ci_direct else 'OK'}")
+    print(f"raw_fnb mengotorisasi view dataset stg:    {'OK' if stg_authorized else 'TIDAK SESUAI'}"
+          + ("" if stg_authorized and not ci_direct else "  (python3 infra/restrict_raw_ci_access.py)"))
     print("\nRBAC sesuai harapan." if not failures else f"\n{failures} pemeriksaan TIDAK SESUAI.")
     sys.exit(1 if failures else 0)
 
