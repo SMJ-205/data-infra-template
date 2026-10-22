@@ -93,8 +93,18 @@ jobs:
           else
             dbt build --target prod
           fi
-      - run: dbt docs generate --target prod
+      # Dokumentasi bukan jalur kritis: gangguan sesaat (mis. timeout token OIDC/WIF) di-retry, dan bila tetap
+      # gagal tidak menandai job transform gagal sehingga export-dashboard tetap berjalan.
+      - name: dbt docs generate (non-kritis, retry 3x)
         if: always()
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            dbt docs generate --target prod && exit 0
+            echo "::warning::dbt docs generate gagal (percobaan $attempt/3), coba lagi dalam 20 detik"
+            sleep 20
+          done
+          exit 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
