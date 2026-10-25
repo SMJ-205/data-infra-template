@@ -11,6 +11,7 @@ Perintah:
   daily --date YYYY-MM-DD   proses 1 hari (otomatis menyusul hari yang terlewat sejak proses terakhir) + HR sync
   hr-sync --end YYYY-MM-DD  bangun ulang data HR (hr.py) s.d. tanggal lalu upsert
   stats                     jumlah baris per tabel dan ukuran database
+  storage-check             peringatan (::warning:: GitHub) bila storage Neon >= 85% batas free tier
   reset --yes               kosongkan data transaksi dan state (master dipertahankan)
 
 Koneksi: env SOURCE_DATABASE_URL (endpoint DIRECT Neon, bukan -pooler).
@@ -928,6 +929,23 @@ def cmd_stats(args):
         print("State generator as_of:", row[0] if row else None)
 
 
+def cmd_storage_check(args):
+    """Peringatan dini kapasitas Neon free tier. Tidak pernah menggagalkan pipeline (exit 0)."""
+    with connect() as conn:
+        size = conn.execute("select pg_database_size(current_database())").fetchone()[0]
+    used_mb, pct = size / 1024 / 1024, size / (args.limit_mb * 1024 * 1024) * 100
+    msg = f"Neon storage {used_mb:.0f} MB dari {args.limit_mb} MB ({pct:.0f}%)"
+    print(msg)
+    if pct >= args.warn_pct:
+        hint = ("jalankan retensi: python oltp/generator/generate.py purge --older-than-months 12 --yes "
+                "(data historis di BigQuery tidak ikut terhapus)")
+        print(f"::warning title=Neon storage >= {args.warn_pct}%::{msg} - {hint}")
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as f:
+                f.write(f"### Neon storage {pct:.0f}% (ambang {args.warn_pct}%)\n\n{msg}.\n\nTindakan: {hint}.\n")
+
+
 def cmd_reset(args):
     if not args.yes:
         sys.exit("Tambahkan --yes untuk mengosongkan data transaksi.")
@@ -1040,6 +1058,9 @@ def main():
     p = sub.add_parser("hr-sync", help="Bangun ulang data HR deterministik s.d. tanggal lalu upsert (idempoten)")
     p.add_argument("--end", type=date_arg, required=True); p.set_defaults(fn=cmd_hr_sync)
     p = sub.add_parser("stats"); p.set_defaults(fn=cmd_stats)
+    p = sub.add_parser("storage-check", help="Peringatan bila storage Neon melewati ambang (default 85%% dari 512 MB)")
+    p.add_argument("--limit-mb", type=int, default=512); p.add_argument("--warn-pct", type=int, default=85)
+    p.set_defaults(fn=cmd_storage_check)
     p = sub.add_parser("purge", help="Hapus transaksi historis lama untuk menjaga batas kapasitas Neon")
     p.add_argument("--older-than-months", type=int, default=12)
     p.add_argument("--yes", action="store_true")
