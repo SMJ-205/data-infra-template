@@ -37,3 +37,4 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
+analysis/cost_inventory/output/

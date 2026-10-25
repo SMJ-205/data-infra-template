@@ -1,0 +1,38 @@
+name: analysis-forecast
+
+# Analisis sekali jalan "Cost Control & Inventory Forecasting" (analysis/cost_inventory).
+# Menjalankan query analisis (read-only) + forecasting Holt-Winters, lalu mengunggah hasil CSV sebagai artefak.
+# Tidak menulis apa pun ke BigQuery dan tidak membuat model di BigQuery.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  forecast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r analysis/cost_inventory/requirements.txt
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_DBT }}        # baca core & marts (read-only di sini)
+      - name: Query analisis (01-07)
+        run: python analysis/cost_inventory/run_queries.py
+      - name: Forecasting + safety stock & ROP
+        run: python analysis/cost_inventory/forecast.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cost-inventory-analysis
+          path: analysis/cost_inventory/output/*.csv
+          retention-days: 90
