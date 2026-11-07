@@ -1,6 +1,6 @@
 {
-  "data_through": "2026-11-06",
-  "generated_at_utc": "2026-11-06T22:25:32+00:00",
+  "data_through": "2026-11-07",
+  "generated_at_utc": "2026-11-07T21:11:02+00:00",
   "rows": {
     "category_daily": 6720,
     "channel_daily": 5822,
@@ -12,7 +12,7 @@
     "orders_hourly": 1267,
     "pnl_daily": 1350,
     "pnl_monthly": 51,
-    "waste": 2568
+    "waste": 2580
   },
-  "total_size_kb": 7195.2
+  "total_size_kb": 7198.3
 }
